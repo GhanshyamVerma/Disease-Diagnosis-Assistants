@@ -12,7 +12,7 @@ Click on the below links to download the preprocessed and labeled Gene Expressio
 
 [Gene Expression Dataset 1](https://doi.org/10.7910/DVN/0J2DUK)
 
-[Gene Expression Dataset 2](https://doi.org/10.7910/DVN/0J2DUK)
+[Gene Expression Dataset 2](https://doi.org/10.7910/DVN/QHEDVX)
 
 [Gene Expression Dataset 3](https://doi.org/10.7910/DVN/0J2DUK)
 
