@@ -99,7 +99,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       # extracting data of lth subject 
       Gene_expression_data_sub_l <- Gene_expression_data %>% filter(Super_Subject_ID == l)
-      Gene_expression_data_sub_l <- Gene_expression_data_sub_l[ , -c(1:8)]
+      Gene_expression_data_sub_l <- Gene_expression_data_sub_l[ , -c(1:(s_index-1))]
       
       cat("\n")
       print("################################# New subject's computation start from here ##################################")
