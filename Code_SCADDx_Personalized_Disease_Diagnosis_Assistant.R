@@ -10,11 +10,11 @@ library(ggplot2) # for plots
 ############################### Input from user ##########################################
 
 # read CTD knowledge graph that contains gene disease links 
-KG_ctd_gene_disease <- read.csv(file = "/Users/ghanshyamverma/Documents/4th_Year/Data Sets/KG_Data/Curated_Influenza/Curated_Influenza_V3/CTD_KG_n_Curated_RVI_Common_Gene_KG_V3.csv", header = TRUE, sep=",")
+KG_ctd_gene_disease <- read.csv(file = "Gene_Diseases_Knowledge_Graph_with_Curated_Links.csv", header = TRUE, sep=",")
 
 # read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
 # required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-Gene_expression_data <- read.csv(file = "/Users/ghanshyamverma/Documents/4th_Year/Project_3/All_Codes/All_Code_For_Submission/Inight_Server/Dataset_1_SCADDx/Dataset_1_SCADDx_PQ200_1_to_10_dis/Gene_Expression_Dataset_1_Lable_RVI_or_Not_RVI.csv", header = TRUE, sep=",", check.names = FALSE)
+Gene_expression_data <- read.csv(file = "Gene_Expression_Dataset_1.csv", header = TRUE, sep=",", check.names = FALSE)
 
 # enter the number of top "m" most likely diseases you want to see with computed probabilites for each patient 
 m = 5
