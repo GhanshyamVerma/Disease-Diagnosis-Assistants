@@ -15,11 +15,12 @@ You can download the latest version of R from here:
 1. Download the provided R code, gene expression datasets and knowledge graph, and keep them in the same folder. 
 2. Open the terminal
 3. Go to the folder where you downloaded all the code and datasets
-4. Run SCADDx using this commond: 
+4. Run SCADDx using this command: 
 ```
 R CMD BATCH SCADDx.R
 ```
-5. Run LOADDx using this commond: 
+5. Run LOADDx using this command: 
 ```
 R CMD BATCH LOADDx.R
 ```
+These command will create a .Rout (output) file in the same folder. This .Rout file will contain all the results. 
