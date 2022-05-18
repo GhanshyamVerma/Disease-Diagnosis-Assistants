@@ -10,11 +10,11 @@ library(ggplot2) # for plots
 ############################### Input from user ##########################################
 
 # read CTD knowledge graph that contains gene disease links 
-KG_ctd_gene_disease <- read.csv(file = "/home/ghaver/Ghanshyam/all_data/KG/Gene_Diseases_Knowledge_Graph_with_Curated_Links_v3.csv", header = TRUE, sep=",")
+KG_ctd_gene_disease <- read.csv(file = "Gene_Diseases_Knowledge_Graph_with_Curated_Links.csv", header = TRUE, sep=",")
 
 # read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
 # required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-Gene_expression_data <- read.csv(file = "/home/ghaver/Ghanshyam/all_data/Gene_Expression/Gene_Expression_Dataset_3_GSE90732.csv", header = TRUE, sep=",", check.names = FALSE)
+Gene_expression_data <- read.csv(file = "Gene_Expression_Dataset_3.csv", header = TRUE, sep=",", check.names = FALSE)
 
 Gene_expression_data[1:10,1:10]
 dim(Gene_expression_data)
