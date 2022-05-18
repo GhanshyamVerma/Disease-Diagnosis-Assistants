@@ -1,5 +1,5 @@
 # Personalized-Disease-Diagnosis-Assistants
-LOADDx and SCADDx can produce a short personalized ranked list of the most likely diseases for each patient at a requested time-point, from a knowledge base with thousands of diseases. They enable personalized disease diagnosis by combining patients’ temporal gene expression data with a Knowledge Graph. The proposed algorithms can predict the most likely diseases for each patient along with their most affected genes, which can support health care professionals in their decision-making.
+SCADDx and LOADDx can produce a short personalized ranked list of the most likely diseases for each patient at a requested time-point, from a knowledge base with thousands of diseases. They enable personalized disease diagnosis by combining patients’ temporal gene expression data with a Knowledge Graph. The proposed algorithms can predict the most likely diseases for each patient along with their most affected genes, which can support health care professionals in their decision-making.
 
 ## How to Install and Run the Software
 LOADDx and SCADDx are written in R progrmming language, and can run on Windows, MacOS or Linux. However, the R programming language is required to be installed before you run the software/code.
