@@ -9,7 +9,7 @@ library(ggplot2) # for plots
 
 ############################### Input from user ##########################################
 
-# read CTD knowledge graph that contains gene disease links 
+# read knowledge graph
 KG_ctd_gene_disease <- read.csv(file = "Gene_Diseases_Knowledge_Graph_with_Curated_Links.csv", header = TRUE, sep=",")
 
 # read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
