@@ -1,0 +1,12 @@
+caret
+dplyr
+e1071
+ggplot2
+tidyverse
+devtools
+disgenet2r
+class
+randomForest
+pROC
+xgboost
+kernlab
