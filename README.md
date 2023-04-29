@@ -10,6 +10,8 @@ R version 3.6.2 or above
 You can download the latest version of R from here:
 * [Install R](https://www.r-project.org/)
 
+### Required packages:
+Install all the packages listed in requirements.txt file
 
 ### Steps to run the code:
 1. Download the provided R code, gene expression datasets and knowledge graph, and keep them in the same folder. 
