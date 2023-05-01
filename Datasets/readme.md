@@ -4,7 +4,7 @@
 
 ### Knowledge Graph 
 
-[Gene Diseases Knowledge Graph](https://doi.org/10.7910/DVN/I2O1OX)
+[CTD Knowledge Graph](https://doi.org/10.7910/DVN/I2O1OX)
 
 
 ### Gene Expression Datasets
