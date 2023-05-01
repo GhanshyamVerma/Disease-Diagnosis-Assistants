@@ -2,10 +2,6 @@
 ## Datasets Downloading
 Datasets bigger than 25MB can be downloaded using below links:
 
-### Knowledge Graph 
-
-[CTD Knowledge Graph](https://doi.org/10.7910/DVN/I2O1OX)
-
 
 ### Gene Expression Datasets
 
