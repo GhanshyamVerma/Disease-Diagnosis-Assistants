@@ -1,6 +1,6 @@
 
 ## Datasets Downloading
-
+Datasets bigger than 25MB can be downloaded using below links:
 
 ### Knowledge Graph 
 
