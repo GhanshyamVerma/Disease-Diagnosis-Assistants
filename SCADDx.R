@@ -14,12 +14,12 @@ library(ggplot2) # for plots
 ############################### Input from user ##########################################
 
 # read knowledge graph
-KG <- read.csv(file = "/Users/ghanshyam/My_Documents/Old_Mac_Backup/My_Documents/2021/Project_3_RQ_3_SCADDx_LOADDx/Code/Github/New_Github_code_1_May_2023/DisGeNet_KG.csv", header = TRUE, sep=",")
+KG <- read.csv(file = "DisGeNet_KG.csv", header = TRUE, sep=",")
 
 
 # read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
 # required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-Gene_expression_data <- read.csv(file = "/Users/ghanshyam/My_Documents/Old_Mac_Backup/My_Documents/2021/Project_3_RQ_3_SCADDx_LOADDx/Datasets/Gene_Expression/Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
+Gene_expression_data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
 
 Gene_expression_data[1:10,1:10]
 dim(Gene_expression_data)
