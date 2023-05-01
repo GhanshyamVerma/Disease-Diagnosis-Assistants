@@ -1,4 +1,4 @@
-################ A Personalized Disease Diagnosis Assistant ######################
+################ SCADDx: A Personalized Disease Diagnosis Assistant ######################
 
 # Start the clock!
 total_time <- proc.time()
