@@ -2,7 +2,7 @@
 ## Datasets Downloading
 Datasets bigger than 25MB can be downloaded using below links:
 
-[DisGeNet Knowledge Graph](https://doi.org/10.7910/DVN/VL3SIN)
+[DisGeNet Knowledge Graph](https://doi.org/10.7910/DVN/Y3KCSI)
 
 [CTD Knowledge Graph](https://doi.org/10.7910/DVN/VL3SIN)
 
