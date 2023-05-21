@@ -9,10 +9,13 @@ library(randomForest) # For random forest algorithm
 library(pROC) # For plotting the ROC curves
 library(kernlab) # For kernals
 
-################################ Dataset 4 ############################################
+############################### Input from user ##########################################
 
-# Reading the data file that contains labels and gene expression values
-Gene_Exp_Data <- read.csv("/home/ghaver/Ghanshyam/all_data/Gene_Expression/Gene_Expression_Dataset_4_GSE61754.csv", header=TRUE, sep=",", check.names = FALSE)
+# read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
+# required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
+# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
+Gene_Exp_Data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
+
 
 
 # Display the data
