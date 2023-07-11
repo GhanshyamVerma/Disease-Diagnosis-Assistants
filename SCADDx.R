@@ -13,8 +13,8 @@ library(ggplot2) # for plots
 
 ############################### Input from user ##########################################
 
-# read knowledge graph (If you want to use another KG, just read another KG by giving path of that KG in below statement).
-KG <- read.csv(file = "DisGeNet_KG.csv", header = TRUE, sep=",")
+# read Knowledge Base (If you want to use another KB, just read another KB by giving path of that KB in below statement).
+KB <- read.csv(file = "DisGeNet_KB.csv", header = TRUE, sep=",")
 
 
 # read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
@@ -90,8 +90,8 @@ Q_step <- 25
 #######################################################################################################################################
 
 
-# extract all unique diseases from KG to assign computed disease weight
-Data_Unique_Disease <- KG[!duplicated(KG[,c('disease_id')]), c('disease_name','disease_id')]
+# extract all unique diseases from KB to assign computed disease weight
+Data_Unique_Disease <- KB[!duplicated(KB[,c('disease_id')]), c('disease_name','disease_id')]
 
 # reorder the columns
 Data_Unique_Disease <- Data_Unique_Disease[ , c('disease_id','disease_name')]
@@ -120,7 +120,7 @@ Acc_index <- 1
 # Start the clock!
 start_loop_time <- proc.time()
 
-#### Code for assigning weights to the diseases in KG based on changes observed in genes
+#### Code for assigning weights to the diseases in KB based on changes observed in genes
 
 for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
   
@@ -185,8 +185,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:p){ # loop of j for number of genes
         
-        # extract all diseases' ids from KG that are associated with top P genes/ MDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -214,8 +214,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:q){ # loop of j for number of bottom genes
         
-        # extract all diseases' ids from KG that are associated with bottom Q genes / LDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -299,18 +299,18 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
       Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
       
-      # extracting other entities from the KG for the top predicted disease
-      disease_class_n_others <- KG[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+      # extracting other entities from the KB for the top predicted disease
+      disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
       disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
       
       for(d in 1:m){
-        disease_class_n_others$disease_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
-        disease_class_n_others$disease_class_name[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
-        disease_class_n_others$disease_semantic_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+        disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+        disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+        disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
         disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
         disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
-        disease_class_n_others$protein_class[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
-        disease_class_n_others$uniprot_id[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+        disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+        disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
         
       }
       
@@ -459,7 +459,7 @@ Accuracy_matrix <- Accuracy_matrix %>% mutate(Time = 0)
 # initializing the incrementor for Accuracy_matrix
 Acc_index <- 1
 
-#### Code for assigning weights to the diseases in KG based on changes observed in genes
+#### Code for assigning weights to the diseases in KB based on changes observed in genes
 
 for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
   
@@ -524,8 +524,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:p){ # loop of j for number of genes
         
-        # extract all diseases' ids from KG that are associated with top P genes/ MDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -553,8 +553,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:q){ # loop of j for number of bottom genes
         
-        # extract all diseases' ids from KG that are associated with bottom Q genes / LDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -638,18 +638,18 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
       Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
       
-      # extracting other entities from the KG for the top predicted disease
-      disease_class_n_others <- KG[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+      # extracting other entities from the KB for the top predicted disease
+      disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
       disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
       
       for(d in 1:m){
-        disease_class_n_others$disease_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
-        disease_class_n_others$disease_class_name[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
-        disease_class_n_others$disease_semantic_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+        disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+        disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+        disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
         disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
         disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
-        disease_class_n_others$protein_class[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
-        disease_class_n_others$uniprot_id[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+        disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+        disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
         
       }
       
@@ -809,7 +809,7 @@ Accuracy_matrix <- data.frame("P" = 1:(PS*QS), "Q" = 1:(PS*QS), "Acc_Top_1_Dis" 
 # initializing the incrementor for Accuracy_matrix
 Acc_index <- 1
 
-#### Code for assigning weights to the diseases in KG based on changes observed in genes
+#### Code for assigning weights to the diseases in KB based on changes observed in genes
 
 # total number of subjects
 s <- dim(g_total_holdout_test_data)[1]/2
@@ -867,8 +867,8 @@ for(l in 1:s){
   
   for(j in 1:p){ # loop of j for number of genes
     
-    # extract all diseases' ids from KG that are associated with top P genes/ MDEGs of the subject
-    Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+    # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+    Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
     
     if(length(Disease_IDs) == 0){
     }else{
@@ -895,8 +895,8 @@ for(l in 1:s){
   
   for(j in 1:q){ # loop of j for number of bottom genes
     
-    # extract all diseases' ids from KG that are associated with bottom Q genes / LDEGs of the subject
-    Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+    # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+    Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
     
     if(length(Disease_IDs) == 0){
     }else{
@@ -974,18 +974,18 @@ for(l in 1:s){
   Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
   Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
   
-  # extracting other entities from the KG for the top predicted disease
-  disease_class_n_others <- KG[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+  # extracting other entities from the KB for the top predicted disease
+  disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
   disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
   
   for(d in 1:m){
-    disease_class_n_others$disease_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
-    disease_class_n_others$disease_class_name[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
-    disease_class_n_others$disease_semantic_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+    disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+    disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+    disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
     disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
     disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
-    disease_class_n_others$protein_class[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
-    disease_class_n_others$uniprot_id[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+    disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+    disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
     
   }
   
