@@ -1,8 +1,6 @@
 
 ## Datasets Downloading
-Datasets bigger than 25MB can be downloaded using below links:
-
-[DisGeNet Knowledge Base](https://doi.org/10.7910/DVN/Y3KCSI)
+Datasets bigger than 25MB can be downloaded using the below links:
 
 [CTD Knowledge Base](https://doi.org/10.7910/DVN/VL3SIN)
 
