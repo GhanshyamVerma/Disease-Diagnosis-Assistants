@@ -11,13 +11,13 @@ library(ggplot2) # for plots
 
 ############################### Input from user ##########################################
 
-# read knowledge graph (if you want to use another another KG, just read another KG by giving path of that KG in below statement).
-KG <- read.csv(file = "DisGeNet_KG.csv", header = TRUE, sep=",")
+# read knowledge Base (if you want to use another KB, just read another KB by giving path of that KB in below statement).
+KB <- read.csv(file = "DisGeNet_KB.csv", header = TRUE, sep=",")
 
 
 # read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
 # required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
+# if you want to use another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
 Gene_expression_data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
 
 Gene_expression_data[1:10,1:10]
@@ -61,7 +61,7 @@ g_total_holdout_test_data <- total_data %>% filter(Super_Subject_ID %in% g_hold_
 m = 5
 
 # enter values of MDEGs and LDEGs you want to consider or enter a range
-# if you don't want to perform grid search and want to perform the experiment on single P and Q value 
+# If you don't want to perform a grid search and want to perform the experiment on a single P and Q value 
 # then assign same value to variable P_start, P_end and P_step. Similarly same value (value of Q) to variable Q_start, Q_end and Q_step as shown below
 # P_start <- 25
 # P_end <- 25
@@ -73,7 +73,7 @@ m = 5
 
 ###################################    Grid search   ##############################################################
 
-# Grid search: alternatively to perform grid search, enter appropriate start, end, and step size for P and Q
+# Grid search: alternatively to perform a grid search, enter the appropriate start, end, and step size for P and Q
 P_start <- 25
 P_end <- 50
 P_step <- 25
@@ -88,26 +88,26 @@ Q_step <- 25
 #######################################################################################################################################
 
 
-# extract all unique diseases from KG to assign computed disease weight
-Data_Unique_Disease <- KG[!duplicated(KG[,c('disease_id')]), c('disease_name','disease_id')]
+# extract all unique diseases from KB to assign computed disease weight
+Data_Unique_Disease <- KB[!duplicated(KB[,c('disease_id')]), c('disease_name','disease_id')]
 
-# reorder the columns
+# Reorder the columns
 Data_Unique_Disease <- Data_Unique_Disease[ , c('disease_id','disease_name')]
 
-# add a new column named Disease_Weight
+# Add a new column named Disease_Weight
 Data_Unique_Disease <- Data_Unique_Disease %>% mutate(Disease_Weight = 0)
 
 # temporary variable of Data_Unique_Disease
 Data_Unique_Disease_initial_weights <- Data_Unique_Disease
 
-# gene expression values start index in gene expression data
+# Gene expression values start index in gene expression data
 s_index <- 7
 
-# computing length for grid search
+# Computing length for grid search
 PS <- length(seq(P_start,P_end,P_step))
 QS <- length(seq(Q_start,Q_end,Q_step))
 
-# creating data frame to compute and store accuracy at different values of P and Q and, and different value of top n diseases
+# Creating data frame to compute and store accuracy at different values of P and Q and, and different value of top n diseases
 Accuracy_matrix <- data.frame("P" = 1:(PS*QS), "Q" = 1:(PS*QS), "Acc_Top_1_Dis" = 1:(PS*QS), "Acc_Top_2_Dis" = 1:(PS*QS), "Acc_Top_3_Dis" = 1:(PS*QS), "Acc_Top_4_Dis" = 1:(PS*QS), "Acc_Top_5_Dis" = 1:(PS*QS), "Acc_Top_10_Dis" = 1:(PS*QS))
 
 Accuracy_matrix <- Accuracy_matrix %>% mutate(Avg_Acc = 0)
@@ -118,7 +118,7 @@ Acc_index <- 1
 # Start the clock!
 start_loop_time <- proc.time()
 
-#### Code for assigning weights to the diseases in KG based on changes observed in genes
+#### Code for assigning weights to the diseases in KB based on changes observed in genes
 
 for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
   
@@ -130,7 +130,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
     # total number of subjects
     s <- dim(g_total_train_data)[1]/2
     
-    # creating dataframe to store vlaues of predicted class labels
+    # creating data frame to store values of predicted class labels
     
     predicted_info <- g_total_train_data[ , c(1:s_index-1)]
     predicted_info <- predicted_info %>% mutate(predicted_label_top_1 = 1:(2*s))
@@ -183,8 +183,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:p){ # loop of j for number of genes
         
-        # extract all diseases' ids from KG that are associated with top P genes/ MDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -213,8 +213,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:q){ # loop of j for number of bottom genes
         
-        # extract all diseases' ids from KG that are associated with bottom Q genes / LDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -240,10 +240,10 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
         
       }
       
-      # create file name to write data into csv file
+      # create a file name to write data into csv file
       #file_name <- paste("Disease_Weight_Train_Sub_",l,"_p_",p,"_q_",q,".csv", collapse = "",sep="")
       
-      # write data into csv file
+      # write data into CSV file
       #write.csv(Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ], file = file_name, row.names = FALSE)
       
       print("Value of P for train data (number of MDEGs) is :")
@@ -258,7 +258,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       print(g_total_train_data[ g_total_train_data$Super_Subject_ID == l , ]$True_Class_Label[2])
       cat("\n")
       
-      for(i in 1:6){ # loop for how many top disease you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
+      for(i in 1:6){ # loop for how many top diseases you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
         
         if(i<6){
           Top_Disease_Names <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:i, "disease_name"]
@@ -290,10 +290,10 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
         
       }
       
-      # creating dataframe to store computed disease probabilites
+      # creating dataframe to store computed disease probabilities
       Data_Unique_Disease_with_Probability <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:m, ]
       
-      # function to compute probability of predicted disease using generalized softmax
+      # function to compute the probability of predicted disease using generalized softmax
       generalized_softmax <- function(Dis_weight){
         S_Prob <- Dis_weight
         e_Dis_weight <- exp(Dis_weight)
@@ -307,18 +307,18 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
       Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
       
-      # extracting other entities from the KG for the top predicted disease
-      disease_class_n_others <- KG[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+      # extracting other entities from the KB for the top predicted disease
+      disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
       disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
       
       for(d in 1:m){
-        disease_class_n_others$disease_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
-        disease_class_n_others$disease_class_name[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
-        disease_class_n_others$disease_semantic_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+        disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+        disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+        disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
         disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
         disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
-        disease_class_n_others$protein_class[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
-        disease_class_n_others$uniprot_id[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+        disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+        disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
         
       }
       
@@ -345,7 +345,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
     cat("\n")
     
     ## computing accuracy using all subjects of test data 
-    # computing accuraacy using confusion matrix if both positive and negative subjects are there in the data
+    # computing accuracy using a confusion matrix if both positive and negative subjects are there in the data
     if(any(Gene_Data_All_ti_prediction$True_Class_Label == "Not RVI")){
       for(i in 1:6){
         confusion_mat <- confusionMatrix( as.factor(All_Sub_temp_prediction[,i]), as.factor(Gene_Data_All_ti_prediction$True_Class_Label), positive = "RVI")
@@ -366,7 +366,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
         
         Accuracy_matrix[Acc_index, (2+i)] <- confusion_mat$overall[1]
       }
-    }else{ #computing accuraacy using stardard method (hit rate) if only positive subjects are there in the data
+    }else{ #computing accuracy using standard method (hit rate) if only positive subjects are there in the data
       for(i in 1:6){
         hit <- 0
         for(k in 1:dim(All_Sub_temp_prediction)[1]){
@@ -397,7 +397,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
     }
     
-    # assign current value of P and Q 
+    # assign the current value of P and Q 
     Accuracy_matrix$P[Acc_index] <- p
     Accuracy_matrix$Q[Acc_index] <- q
     
@@ -432,12 +432,12 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
     
     
     
-    print("################################## Current itteration of the loop for Q ends here ##########################################")
+    print("################################## Current iteration of the loop for Q ends here ##########################################")
     cat("\n")
     
   } # ending loop q 
   
-  print("################################## Current itteration of the loop for P ends here ##########################################")
+  print("################################## Current iteration of the loop for P ends here ##########################################")
   cat("\n")
   
 } # ending loop p
@@ -460,7 +460,7 @@ print(Accuracy_matrix)
 
 
 
-# creating data frame to compute and store accuracy at different values of P and Q and, and different value of top n diseases
+# creating data frame to compute and store accuracy at different values of P and Q and, and different values of top n diseases
 Accuracy_matrix <- data.frame("P" = 1:(PS*QS), "Q" = 1:(PS*QS), "Acc_Top_1_Dis" = 1:(PS*QS), "Acc_Top_2_Dis" = 1:(PS*QS), "Acc_Top_3_Dis" = 1:(PS*QS), "Acc_Top_4_Dis" = 1:(PS*QS), "Acc_Top_5_Dis" = 1:(PS*QS), "Acc_Top_10_Dis" = 1:(PS*QS))
 
 Accuracy_matrix <- Accuracy_matrix %>% mutate(Avg_Acc = 0)
@@ -468,7 +468,7 @@ Accuracy_matrix <- Accuracy_matrix %>% mutate(Time = 0)
 # initializing the incrementor for Accuracy_matrix
 Acc_index <- 1
 
-#### Code for assigning weights to the diseases in KG based on changes observed in genes
+#### Code for assigning weights to the diseases in KB based on changes observed in genes
 
 for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
   
@@ -517,7 +517,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       print(l)
       cat("\n")
       
-      # for each subject, again initialize the Data_Unique_Disease variable dataframe
+      # for each subject, again initialize the Data_Unique_Disease variable data frame
       Data_Unique_Disease <- Data_Unique_Disease_initial_weights
       
       # compute changes in gene expression values (Target sample (TD) - Reference sample (T1)
@@ -533,8 +533,8 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
       for(j in 1:p){ # loop of j for number of genes
         
-        # extract all diseases' ids from KG that are associated with top P genes/ MDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
@@ -557,20 +557,20 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       Gene_Transition_Matrix_bottom_q_Genes <- Gene_Transition_Matrix[ , order(abs(Gene_Transition_Matrix[ , ]))]
       Gene_Transition_Matrix_bottom_q_Genes <- Gene_Transition_Matrix_bottom_q_Genes[ , c(1:q)]
       
-      print("5 Least Differencially Expressed Genes (LDEGs):")
+      print("5 Least Differentially Expressed Genes (LDEGs):")
       print(Gene_Transition_Matrix_bottom_q_Genes[ , 1:5])
       cat("\n")
       
       for(j in 1:q){ # loop of j for number of bottom genes
         
-        # extract all diseases' ids from KG that are associated with bottom Q genes / LDEGs of the subject
-        Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+        # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+        Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
         
         if(length(Disease_IDs) == 0){
         }else{
           for(k in 1:length(Disease_IDs)){ # loop for every disease id
             
-            # down-weighting the diseases based on the associated Q LDEGs to them
+            # Down-weighting the diseases based on the associated Q LDEGs to them
             Odds_bottom_gene[Odds_bottom_gene$disease_id ==  Disease_IDs[k], "Disease_Weight"] <-  Odds_bottom_gene[Odds_bottom_gene$disease_id ==  Disease_IDs[k], "Disease_Weight"] + 1
             
           }  # end for loop k
@@ -591,10 +591,10 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       }
       
       
-      # create file name to write data into csv file
+      # create file name to write data into CSV file
       #file_name <- paste("Disease_Weight_Train_Sub_",l,"_p_",p,"_q_",q,".csv", collapse = "",sep="")
       
-      # write data into csv file
+      # write data into CSV file
       #write.csv(Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ], file = file_name, row.names = FALSE)
       
       print("Value of P for validation data (number of MDEGs) is :")
@@ -609,7 +609,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       print(g_total_valid_data[ g_total_valid_data$Super_Subject_ID == l , ]$True_Class_Label[2])
       cat("\n")
       
-      for(i in 1:6){ # loop for how many top disease you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
+      for(i in 1:6){ # loop for how many top diseases you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
         
         if(i<6){
           Top_Disease_Names <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:i, "disease_name"]
@@ -641,10 +641,10 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
         
       }
       
-      # creating dataframe to store computed disease probabilites
+      # creating data frame to store computed disease probabilities
       Data_Unique_Disease_with_Probability <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:m, ]
       
-      # function to compute probability of predicted disease using generalized softmax
+      # function to compute the probability of predicted disease using generalized softmax
       generalized_softmax <- function(Dis_weight){
         S_Prob <- Dis_weight
         e_Dis_weight <- exp(Dis_weight)
@@ -658,18 +658,18 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
       Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
       
-      # extracting other entities from the KG for the top predicted disease
-      disease_class_n_others <- KG[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+      # extracting other entities from the KB for the top predicted disease
+      disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
       disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
       
       for(d in 1:m){
-        disease_class_n_others$disease_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
-        disease_class_n_others$disease_class_name[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
-        disease_class_n_others$disease_semantic_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+        disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+        disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+        disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
         disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
         disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
-        disease_class_n_others$protein_class[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
-        disease_class_n_others$uniprot_id[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+        disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+        disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
         
       }
       
@@ -694,7 +694,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
     cat("\n")
     
     ## computing accuracy using all subjects of test data 
-    # computing accuracy using confusion matrix if both positive and negative subjects are there in the data
+    # computing accuracy using a confusion matrix if both positive and negative subjects are there in the data
     if(any(Gene_Data_All_ti_prediction$True_Class_Label == "Not RVI")){
       for(i in 1:6){
         confusion_mat <- confusionMatrix( as.factor(All_Sub_temp_prediction[,i]), as.factor(Gene_Data_All_ti_prediction$True_Class_Label), positive = "RVI")
@@ -715,7 +715,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
         
         Accuracy_matrix[Acc_index, (2+i)] <- confusion_mat$overall[1]
       }
-    }else{ #computing accuraacy using stardard method (hit rate) if only positive subjects are there in the data
+    }else{ #computing accuracy using standard method (hit rate) if only positive subjects are there in the data
       for(i in 1:6){
         hit <- 0
         for(k in 1:dim(All_Sub_temp_prediction)[1]){
@@ -746,7 +746,7 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
       
     }
     
-    # assign current value of P and Q 
+    # assign the current value of P and Q 
     Accuracy_matrix$P[Acc_index] <- p
     Accuracy_matrix$Q[Acc_index] <- q
     
@@ -774,12 +774,12 @@ for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
     # incrementor
     Acc_index <- Acc_index +1
     
-    print("################################## Validation code: Current itteration of the loop for Q ends here ##########################################")
+    print("################################## Validation code: Current iteration of the loop for Q ends here ##########################################")
     cat("\n")
     
   } # ending loop q 
   
-  print("################################## Validation code: Current itteration of the loop for P ends here ##########################################")
+  print("################################## Validation code: Current iteration of the loop for P ends here ##########################################")
   cat("\n")
   
 } # ending loop p
@@ -797,11 +797,11 @@ print(Accuracy_matrix)
 
 
 
-# Selecting best value of P and Q based on the performance on validation set
+# Selecting the best value of P and Q based on the performance of the validation set
 P <- Accuracy_matrix[Accuracy_matrix$Avg_Acc == max(Accuracy_matrix$Avg_Acc), "P"][1]
 Q <- Accuracy_matrix[Accuracy_matrix$Avg_Acc == max(Accuracy_matrix$Avg_Acc), "Q"][1]
 
-# Parameter setting for not performing grid search as we are selecting best value of P and Q based on the performance on validation set
+# Parameter setting for not performing grid search as we are selecting the best value of P and Q based on the performance of the validation set
 P_start <- P
 P_end <- P
 P_step <- 0
@@ -824,18 +824,18 @@ s_index <- 7
 PS <- length(seq(P_start,P_end,P_step))
 QS <- length(seq(Q_start,Q_end,Q_step))
 
-# creating data frame to compute and store accuracy at different values of P and Q and, and different value of top n diseases
+# creating data frame to compute and store accuracy at different values of P and Q and, and different values of top n diseases
 Accuracy_matrix <- data.frame("P" = 1:(PS*QS), "Q" = 1:(PS*QS), "Acc_Top_1_Dis" = 1:(PS*QS), "Acc_Top_2_Dis" = 1:(PS*QS), "Acc_Top_3_Dis" = 1:(PS*QS), "Acc_Top_4_Dis" = 1:(PS*QS), "Acc_Top_5_Dis" = 1:(PS*QS), "Acc_Top_10_Dis" = 1:(PS*QS))
 
 # initializing the incrementor for Accuracy_matrix
 Acc_index <- 1
 
-#### Code for assigning weights to the diseases in KG based on changes observed in genes
+#### Code for assigning weights to the diseases in KB based on changes observed in genes
 
 # total number of subjects
 s <- dim(g_total_holdout_test_data)[1]/2
 
-# creating data frame to store vlaues of predicted class labels
+# creating data frame to store values of predicted class labels
 
 predicted_info <- g_total_holdout_test_data[ , c(1:s_index-1)]
 predicted_info <- predicted_info %>% mutate(predicted_label_top_1 = 1:(2*s))
@@ -855,7 +855,7 @@ Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_
 
 All_Sub_temp_prediction <- data.frame("Top_1"=1:s, "Top_2"=1:s,"Top_3"=1:s, "Top_4"=1:s,"Top_5"=1:s, "Top_10"=1:s)
 
-# loop of l for number of subjects
+# loop of l for the number of subjects
 
 for(l in 1:s){ 
   
@@ -882,14 +882,14 @@ for(l in 1:s){
   Gene_Transition_Matrix_top_p_Genes <- Gene_Transition_Matrix[ , order(-abs(Gene_Transition_Matrix[ , ]))]
   Gene_Transition_Matrix_top_p_Genes <- Gene_Transition_Matrix_top_p_Genes[ , c(1:p)]
   
-  print("Top 5 Most Differencially Expressed Genes (MDEGs):")
+  print("Top 5 Most Differentially Expressed Genes (MDEGs):")
   print(Gene_Transition_Matrix_top_p_Genes[ , 1:5])
   cat("\n")
   
   for(j in 1:p){ # loop of j for number of genes
     
-    # extract all diseases' ids from KG that are associated with top P genes/ MDEGs of the subject
-    Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+    # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+    Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
     
     if(length(Disease_IDs) == 0){
     }else{
@@ -912,20 +912,20 @@ for(l in 1:s){
   Gene_Transition_Matrix_bottom_q_Genes <- Gene_Transition_Matrix[ , order(abs(Gene_Transition_Matrix[ , ]))]
   Gene_Transition_Matrix_bottom_q_Genes <- Gene_Transition_Matrix_bottom_q_Genes[ , c(1:q)]
   
-  print("5 Least Differencially Expressed Genes (LDEGs):")
+  print("5 Least Differentially Expressed Genes (LDEGs):")
   print(Gene_Transition_Matrix_bottom_q_Genes[ , 1:5])
   cat("\n")
   
   for(j in 1:q){ # loop of j for number of bottom genes
     
-    # extract all diseases' ids from KG that are associated with bottom Q genes / LDEGs of the subject
-    Disease_IDs <- KG[KG$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+    # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+    Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
     
     if(length(Disease_IDs) == 0){
     }else{
       for(k in 1:length(Disease_IDs)){ # loop for every disease id
         
-        # down-weighting the diseases based on the associated Q LDEGs to them
+        # Down-weighting the diseases based on the associated Q LDEGs to them
         Odds_bottom_gene[Odds_bottom_gene$disease_id ==  Disease_IDs[k], "Disease_Weight"] <-  Odds_bottom_gene[Odds_bottom_gene$disease_id ==  Disease_IDs[k], "Disease_Weight"] + 1
         
       }  # end for loop k
@@ -958,7 +958,7 @@ for(l in 1:s){
   print(g_total_holdout_test_data[ g_total_holdout_test_data$Super_Subject_ID == l , ]$True_Class_Label[2])
   cat("\n")
   
-  for(i in 1:6){ # loop for how many top disease you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
+  for(i in 1:6){ # loop for how many top diseases you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
     
     if(i<6){
       Top_Disease_Names <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:i, "disease_name"]
@@ -990,10 +990,10 @@ for(l in 1:s){
     
   }
   
-  # creating dataframe to store computed disease probabilites
+  # creating dataframe to store computed disease probabilities
   Data_Unique_Disease_with_Probability <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:m, ]
   
-  # function to compute probability of predicted disease using generalized softmax
+  # function to compute the probability of predicted disease using generalized softmax
   generalized_softmax <- function(Dis_weight){
     S_Prob <- Dis_weight
     e_Dis_weight <- exp(Dis_weight)
@@ -1007,18 +1007,18 @@ for(l in 1:s){
   Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
   Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
   
-  # extracting other entities from the KG for the top predicted disease
-  disease_class_n_others <- KG[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+  # extracting other entities from the KB for the top predicted disease
+  disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
   disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
   
   for(d in 1:m){
-    disease_class_n_others$disease_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
-    disease_class_n_others$disease_class_name[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
-    disease_class_n_others$disease_semantic_type[d] <- KG[KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+    disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+    disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+    disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
     disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
     disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
-    disease_class_n_others$protein_class[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
-    disease_class_n_others$uniprot_id[d] <- KG[KG$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KG$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+    disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+    disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
     
   }
   
@@ -1044,7 +1044,7 @@ print("Accuracy calculated using all test subjects considering different values 
 cat("\n")
 
 ## computing accuracy using all subjects of test data 
-# computing accuracy using confusion matrix if both positive and negative subjects are there in the data
+# computing accuracy using a confusion matrix if both positive and negative subjects are there in the data
 if(any(Gene_Data_All_ti_prediction$True_Class_Label == "Not RVI")){
   for(i in 1:6){
     confusion_mat <- confusionMatrix( as.factor(All_Sub_temp_prediction[,i]), as.factor(Gene_Data_All_ti_prediction$True_Class_Label), positive = "RVI")
@@ -1065,7 +1065,7 @@ if(any(Gene_Data_All_ti_prediction$True_Class_Label == "Not RVI")){
     
     Accuracy_matrix[Acc_index, (2+i)] <- confusion_mat$overall[1]
   }
-}else{ #computing accuraacy using stardard method (hit rate) if only positive subjects are there in the data
+}else{ #computing accuracy using standard method (hit rate) if only positive subjects are there in the data
   for(i in 1:6){
     hit <- 0
     for(k in 1:dim(All_Sub_temp_prediction)[1]){
@@ -1096,7 +1096,7 @@ if(any(Gene_Data_All_ti_prediction$True_Class_Label == "Not RVI")){
   
 }
 
-# assign current value of P and Q 
+# assign the current value of P and Q 
 Accuracy_matrix$P[Acc_index] <- p
 Accuracy_matrix$Q[Acc_index] <- q
 
@@ -1111,7 +1111,7 @@ cat("\n")
 Accuracy_matrix <- Accuracy_matrix %>% mutate(Avg_Acc = 0)
 Accuracy_matrix$Avg_Acc <- rowMeans(Accuracy_matrix[,c(3:8)])
 
-# create file name of accuracy matrix to write data into csv file
+# create file name of accuracy matrix to write data into CSV file
 file_name_1 <- paste("Accuracy_matrix_holdout_test_Sub",l,"_p_",p,"_q_",q,".csv", collapse = "",sep="")
 write.csv(Accuracy_matrix, file = file_name_1, row.names = FALSE)
 
