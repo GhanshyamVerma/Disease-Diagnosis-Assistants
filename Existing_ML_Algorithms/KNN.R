@@ -92,7 +92,7 @@ g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
 
 # training procedure
 
-set.seed(7)
+set.seed(1234)
 
 metric <- "Accuracy"
 grid <- expand.grid(k = c(1:30))
@@ -113,7 +113,7 @@ print((sd(train_full_Feature$resample$Accuracy)))
 
 ##################################### Validation data prediction ####################################
 
-set.seed(7)
+set.seed(1234)
 
 metric <- "Accuracy"
 grid <- expand.grid(k = c(1:30))
@@ -138,7 +138,7 @@ print((sd(Valid_full_Feature$resample$Accuracy)))
 # Selecting final model parameters
 final_k <- Valid_full_Feature$finalModel$tuneValue[1]
 
-set.seed(7)
+set.seed(1234)
 
 metric <- "Accuracy"
 grid <- expand.grid(k = final_k)
