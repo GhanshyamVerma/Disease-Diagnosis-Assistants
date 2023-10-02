@@ -1,3 +1,11 @@
+# Required Programming Language
+# R version 3.6.2 or above
+
+# Required packages
+# caret 6.0.93
+# dplyr 1.1.0
+# e1071 1.7.11
+# xgboost 1.7.3.1
 
 # load packages
 library(caret) # for various machine learning functions
