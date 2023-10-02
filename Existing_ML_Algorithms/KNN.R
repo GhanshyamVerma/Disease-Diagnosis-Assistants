@@ -1,3 +1,11 @@
+# Required Programming Language
+# R version 3.6.2 or above
+
+# Required packages
+# caret 6.0.93
+# dplyr 1.1.0
+# e1071 1.7.11
+
 # load packages
 library(caret) # for various machine learning functions
 library(dplyr) # for data manupulation
@@ -84,7 +92,7 @@ g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
 
 # training procedure
 
-set.seed(1234)
+set.seed(7)
 
 metric <- "Accuracy"
 grid <- expand.grid(k = c(1:30))
@@ -105,7 +113,7 @@ print((sd(train_full_Feature$resample$Accuracy)))
 
 ##################################### Validation data prediction ####################################
 
-set.seed(1234)
+set.seed(7)
 
 metric <- "Accuracy"
 grid <- expand.grid(k = c(1:30))
@@ -130,7 +138,7 @@ print((sd(Valid_full_Feature$resample$Accuracy)))
 # Selecting final model parameters
 final_k <- Valid_full_Feature$finalModel$tuneValue[1]
 
-set.seed(1234)
+set.seed(7)
 
 metric <- "Accuracy"
 grid <- expand.grid(k = final_k)
