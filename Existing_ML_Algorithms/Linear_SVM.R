@@ -1,3 +1,15 @@
+# Required Programming Language
+# R version 3.6.2 or above
+
+# Required packages
+caret 6.0.93
+dplyr 1.1.0
+e1071 1.7.11
+ggplot2 3.4.1
+class 7.3.20
+randomForest  4.7.1.1
+pROC  1.18.0
+kernlab 0.9.32
 
 # load packages
 library(caret) # for various machine learning functions
