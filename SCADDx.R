@@ -2,10 +2,10 @@
 # R version 3.6.2 or above
 
 # Required packages
-caret 6.0.93
-dplyr 1.1.0
-e1071 1.7.11
-ggplot2 3.4.1
+# caret 6.0.93
+# dplyr 1.1.0
+# e1071 1.7.11
+# ggplot2 3.4.1
 
 
 ################ SCADDx: A Personalized Disease Diagnosis Assistant ######################
