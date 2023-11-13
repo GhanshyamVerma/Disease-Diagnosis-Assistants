@@ -180,24 +180,16 @@ main_function <- function() {
     # Print final parameter values 
     print
     
-    # Performing validation and hyperparameter selection using validation data
+    # Building the final model using the best-selected hyperparameters
     final_knn_trained_model <- final_knn_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                            as.factor(splits$full_train_data$True_Class_Label), 
                                                            ml_model_seed, final_k)
-    
-    
-    # Train Random Forest (Placeholder)
-    trained_rf_model <- train_rf_model(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                       as.factor(splits$full_train_data$True_Class_Label), ml_model_seed)
     
     # Test KNN
     knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
     
-    
-    
-    # Test Random Forest (Placeholder)
-    # You can add testing for RF and write the confusion matrix to CSV
+
   }
 }
 
