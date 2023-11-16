@@ -162,7 +162,7 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 # Main function
 main_function <- function() {
   # Read datasets
-  dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv")
+  dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_1_GSE73072.csv")
   for(dataset_name in dataset_names) {
     Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
     
