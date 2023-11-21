@@ -28,11 +28,11 @@ data_partition_seed <- 7
 ml_model_seed <- 1234
 
 
-# Define a input path
-input_path <- "/Users/ghanshyam/My_Documents/Old_Mac_Backup/My_Documents/2021/Project_3_RQ_3_SCADDx_LOADDx/Datasets/Gene_Expression/"
+# Define an input path
+input_path <- "/Datasets/Gene_Expression/"
 
-# Define a output path
-output_path <- "/Users/ghanshyam/My_Documents/Year_2023/BMC_Bioinformatics_2023/code_with_functions_revision_3_2023/code_SVS_existing_algos/KNN_D4_Train_Valid_Test_50_25_25_k_1_to_30/"
+# Define an output path
+output_path <- "/Random_Forest/"
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
@@ -64,7 +64,7 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
   dim(hold_out_test)
   dim(valid_data)
   
-  # full train data for final model building
+  # Full train data for final model building
   full_train_data <- rbind(train_data,valid_data)
   
   # train test all time points
@@ -79,14 +79,14 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
   return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data))
 }
 
-# Train Random Forest model (placeholder as you have not provided the random forest code)
+# Train Random Forest model
 train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
   
   # defining evaluation metric
   metric <- "Accuracy"
-  # ntree: parameter that allows number of trees to grow
+  # ntree: parameter that allows the number of trees to grow
   # The mtry parameter setting: Number of variables selected as candidates at each split.
-  # Square root of number of features
+  # Square root of the number of features
   mtry <- floor(sqrt(ncol(train_data)))
   print("Value of mtry:")
   print(mtry)
@@ -103,6 +103,7 @@ train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
   return(trained_model)
 }
 
+# Final Training function for RF using best parameters
 final_rf_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_mtry, final_n_tree) {
   
   # defining evaluation metric
