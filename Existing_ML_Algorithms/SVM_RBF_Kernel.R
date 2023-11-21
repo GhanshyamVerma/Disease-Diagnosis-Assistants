@@ -79,8 +79,6 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
   return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data))
 }
 
-
-
 # Train RBF SVM model 
 train_RBF_SVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
   set.seed(ml_model_seed)
@@ -106,9 +104,9 @@ final_RBF_SVM_training_function <- function(train_data, Labels_train_data, ml_mo
   
   # Assigning values to the parameter C
   gridRBF <- expand.grid(sigma = final_sigma,
-                      C = final_C)
+                         C = final_C)
   
-  # Training RBF SVM classifier
+  # training RBF SVM classifier
   trained_model <- train(x= train_data, # Training Data
                          y = Labels_train_data,  # Class labels of training data
                          method = "svmRadial", # Train using RBF SVM
@@ -175,7 +173,7 @@ main_function <- function() {
     print("RBF SVM training results:")
     print(trained_RBF_SVM_model)
     
-    # Performing validation and hyperparameter selection using validation data
+    # Performing validation and hyper parameter selection using validation data
     validation_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                                     as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
     
@@ -184,7 +182,7 @@ main_function <- function() {
     print(validation_RBF_SVM_model)
     
     # Selecting final model parameters
-    final_sigma <- sigma = validation_RBF_SVM_model$bestTune$sigma
+    final_sigma <- validation_RBF_SVM_model$bestTune$sigma
     final_C = validation_RBF_SVM_model$bestTune$C
     
     
@@ -194,7 +192,7 @@ main_function <- function() {
     print("Final value of parameter sigma of RBF SVM:")
     print(final_sigma)
     
-    # Performing validation and hyperparameter selection using validation data
+    # Performing validation and hyper parameter selection using validation data
     final_RBF_SVM_trained_model <- final_RBF_SVM_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                                    as.factor(splits$full_train_data$True_Class_Label),
                                                                    ml_model_seed, final_C, final_sigma)
