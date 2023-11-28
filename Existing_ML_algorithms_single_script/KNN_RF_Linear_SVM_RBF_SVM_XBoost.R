@@ -29,10 +29,10 @@ ml_model_seed <- 1234
 
 
 # Define an input path
-input_path <- "/Users/ghanshyam/My_Documents/Old_Mac_Backup/My_Documents/2021/Project_3_RQ_3_SCADDx_LOADDx/Datasets/Gene_Expression/"
+input_path <- "/Datasets/Gene_Expression/"
 
 # Define an output path
-output_path <- "/Users/ghanshyam/My_Documents/Year_2023/BMC_Bioinformatics_2023/code_with_functions_revision_3_2023/code_SVS_existing_algos/KNN_D4_Train_Valid_Test_50_25_25_k_1_to_30/"
+output_path <- "/All_ML_Models_Results/"
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
@@ -300,7 +300,7 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 # Main function
 main_function <- function() {
   # Read datasets
-  dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv")
+  dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
   for(dataset_name in dataset_names) {
     Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
     
