@@ -2,953 +2,522 @@
 # R version 3.6.2 or above
 
 # Required packages
-# caret 6.0.93
-# dplyr 1.1.0
-# e1071 1.7.11
-# ggplot2 3.4.1
-# class 7.3.20
-# randomForest  4.7.1.1
-# pROC  1.18.0
-# xgboost 1.7.3.1
-# kernlab 0.9.32
+required_packages <- c("caret", "dplyr", "e1071", "ggplot2", "class", 
+                       "randomForest", "pROC", "kernlab", "xgboost")
+
+# Check if required r libraries are already installed or not
+new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
+
+# If required r packages or libraries are not already installed, Install them.
+if(length(new_packages)) install.packages(new_packages)
 
 # load packages
-library(caret) # for various machine learning functions
-library(dplyr) # for data manupulation
-library(e1071) # for various functions like confusion matrix
-library(ggplot2) # for plots
-library(class) # # For various classification functions
-library(randomForest) # For random forest algorithm
-library(pROC) # For plotting the ROC curves
-library(kernlab) # For kernals
-library(xgboost) # for building XGboost model
-
-
-############################### KNN ##########################################
-
-############################### Input from user ##########################################
-
-# read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
-# required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
-Gene_Exp_Data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
-
-
-# Display the data
-Gene_Exp_Data[c(1:7),c(1:7)] # show first 7 rows
-
-
-# go inside the train test split
-total_data <- Gene_Exp_Data
-
-Data_target <- total_data %>% filter(Time > 0) 
-
-## First dividing data into training and test set (single time point - target time point)
-set.seed(7)
-# Dividing data set into train (50%) and test (50%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = Data_target$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-test_data <- Data_target[index_test, ]
-train_data <- Data_target[-index_test, ]
-
-
-dim(train_data)
-dim(test_data)
-
-set.seed(7)
-# Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = test_data$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-hold_out_test <- test_data[index_test, ]
-valid_data <- test_data[-index_test, ]
-
-dim(hold_out_test)
-dim(valid_data)
-
-# full train data for final model building
-full_train_data <- rbind(train_data,valid_data)
-
-# train test all time points
-g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
-g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
-g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
-g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
-
-
-
-# Display the dimensions of training and hold-out test set(rows columns)
-(dim(g_train_data))
-(dim(g_valid_data))
-(dim(g_test_data))
-(dim(g_full_train_data)) # for final model building
-
-# Display the data
-g_test_data[c(1:6),c(1:7)] # show first 6 rows
-
-
-# Train and test data
-g_train_data_all_genes <- g_train_data
-g_valid_data_all_genes <- g_valid_data
-g_test_data_all_genes <- g_test_data
-g_full_train_data_all_genes <- g_full_train_data
-
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_train_data_all_genes <- as.factor(g_train_data$True_Class_Label)
-Labels_g_valid_data_all_genes <- as.factor(g_valid_data$True_Class_Label)
-Labels_g_test_data_all_genes <- as.factor(g_test_data$True_Class_Label)
-Labels_g_full_train_data_all_genes <- as.factor(g_full_train_data_all_genes$True_Class_Label)
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_train_data_all_genes <- as.matrix(g_train_data_all_genes[,-c(1:6)])
-g_valid_data_all_genes <- as.matrix(g_valid_data_all_genes[,-c(1:6)])
-g_test_data_all_genes <- as.matrix(g_test_data_all_genes[,-c(1:6)])
-g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
-
-# training procedure
-
-set.seed(1234)
-
-metric <- "Accuracy"
-grid <- expand.grid(k = c(1:30))
-
-# training the k nearest neighbour classifier
-train_full_Feature <- train(x= g_train_data_all_genes, # Training Data
-                            y = Labels_g_train_data_all_genes,  # Class labels of training data
-                            method = "knn", # Train using KNN
-                            metric = metric, # Passing "Accuracy" as evaluation matric
-                            tuneGrid = grid) # Passing grid for tuning parameters
-
-
-# Print trained model
-print(train_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(train_full_Feature$resample$Accuracy)))
-
-##################################### Validation data prediction ####################################
-
-set.seed(1234)
-
-metric <- "Accuracy"
-grid <- expand.grid(k = c(1:30))
-
-# training the k nearest neighbour classifier
-Valid_full_Feature <- train(x= g_valid_data_all_genes, # Training Data
-                            y = Labels_g_valid_data_all_genes,  # Class labels of training data
-                            method = "knn", # Train using KNN
-                            metric = metric, # Passing "Accuracy" as evaluation matric
-                            tuneGrid = grid) # Passing grid for tuning parameters
-
-
-# Print Validation results
-print(Valid_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(Valid_full_Feature$resample$Accuracy)))
-
-
-###################### Final model building using full train data ####################################
-
-# Selecting final model parameters
-final_k <- Valid_full_Feature$finalModel$tuneValue[1]
-
-set.seed(1234)
-
-metric <- "Accuracy"
-grid <- expand.grid(k = final_k)
-
-# training the k nearest neighbour classifier
-final_trained_model <- train(x= g_full_train_data_all_genes, # Training Data
-                             y = Labels_g_full_train_data_all_genes,  # Class labels of training data
-                             method = "knn", # Train using KNN
-                             metric = metric, # Passing "Accuracy" as evaluation matric
-                             tuneGrid = grid) # Passing grid for tuning parameters
-
-
-# Print final trained model results
-print(final_trained_model)
-
-# standard deviation 
-print((sd(final_trained_model$resample$Accuracy)))
-##################################### test data prediction ####################################
-
-
-### Test set predicition
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_test_data_time_t <- as.factor(hold_out_test$True_Class_Label)
-
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_test_data_time_t_all_genes <- as.matrix(hold_out_test[,-c(1:6)])
-
-# Predicting Test Data
-# Passing test data without labels (without fist column which contains labels)
-(testPrediction1 <- predict(final_trained_model, newdata = g_test_data_time_t_all_genes))
-
-
-# Show Test Data
-print(Labels_g_test_data_time_t)
-
-
-### Performance measure
-
-# Display confusion matrix
-print(confusionMatrix(testPrediction1, Labels_g_test_data_time_t))
-
-
-
-############################### Random Forest ##########################################
-
-############################### Input from user ##########################################
-
-# read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
-# required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
-Gene_Exp_Data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
-
-# Display the data
-Gene_Exp_Data[c(1:7),c(1:7)] # show first 7 rows
-
-
-# go inside the train test split
-total_data <- Gene_Exp_Data
-
-Data_target <- total_data %>% filter(Time > 0) 
-
-## First dividing data into training and test set (single time point - target time point)
-set.seed(7)
-# Dividing data set into train (50%) and test (50%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = Data_target$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-test_data <- Data_target[index_test, ]
-train_data <- Data_target[-index_test, ]
-
-
-dim(train_data)
-dim(test_data)
-
-set.seed(7)
-# Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = test_data$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-hold_out_test <- test_data[index_test, ]
-valid_data <- test_data[-index_test, ]
-
-dim(hold_out_test)
-dim(valid_data)
-
-# full train data for final model building
-full_train_data <- rbind(train_data,valid_data)
-
-# train test all time points
-g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
-g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
-g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
-g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
-
-
-
-# Display the dimensions of training and hold-out test set(rows columns)
-(dim(g_train_data))
-(dim(g_valid_data))
-(dim(g_test_data))
-(dim(g_full_train_data)) # for final model building
-
-# Display the data
-g_test_data[c(1:6),c(1:7)] # show first 6 rows
-
-
-# Train and test data
-g_train_data_all_genes <- g_train_data
-g_valid_data_all_genes <- g_valid_data
-g_test_data_all_genes <- g_test_data
-g_full_train_data_all_genes <- g_full_train_data
-
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_train_data_all_genes <- as.factor(g_train_data$True_Class_Label)
-Labels_g_valid_data_all_genes <- as.factor(g_valid_data$True_Class_Label)
-Labels_g_test_data_all_genes <- as.factor(g_test_data$True_Class_Label)
-Labels_g_full_train_data_all_genes <- as.factor(g_full_train_data_all_genes$True_Class_Label)
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_train_data_all_genes <- as.matrix(g_train_data_all_genes[,-c(1:6)])
-g_valid_data_all_genes <- as.matrix(g_valid_data_all_genes[,-c(1:6)])
-g_test_data_all_genes <- as.matrix(g_test_data_all_genes[,-c(1:6)])
-g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
-
-# training procedure
-
-#### Model building using all the Genes
-set.seed(1234)
-
-# defining evaluation metric
-metric <- "Accuracy"
-
-
-# ntree: parameter that allows number of trees to grow
-# The mtry parameter setting: Number of variables selected as candidates at each split.
-# Square root of number of features
-mtry <- floor(sqrt(ncol(g_train_data[,-c(1:6)])))
-print("Value of mtry:")
-print(mtry)
-
-# Passing parameter into tunegrid
-tunegrid <- expand.grid(.mtry=mtry)
-set.seed(1234)
-
-# training the k nearest neighbour classifier
-train_full_Feature <- train(x= g_train_data_all_genes, # Training Data
-                            y = Labels_g_train_data_all_genes,  # Class labels of training data
-                            method = "rf", # Train using Random Forest
-                            metric = metric, # Passing "Accuracy" as evaluation matric
-                            tuneGrid = tunegrid, # Passing grid for tuning parameters
-                            ntree = 100)
-
-
-# Print trained model
-print(train_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(train_full_Feature$resample$Accuracy)))
-
-
-##################################### Validation data prediction ####################################
-
-set.seed(1234)
-
-# defining evaluation metric
-metric <- "Accuracy"
-
-
-# ntree: parameter that allows number of trees to grow
-# The mtry parameter setting: Number of variables selected as candidates at each split.
-# Square root of number of features
-mtry <- floor(sqrt(ncol(g_train_data[,-c(1:6)])))
-print("Value of mtry:")
-print(mtry)
-
-# Passing parameter into tunegrid
-tunegrid <- expand.grid(.mtry=mtry)
-set.seed(1234)
-
-# training the k nearest neighbour classifier
-Valid_full_Feature <- train(x= g_valid_data_all_genes, # Training Data
-                            y = Labels_g_valid_data_all_genes,  # Class labels of training data
-                            method = "rf", # Train using Random Forest
-                            metric = metric, # Passing "Accuracy" as evaluation matric
-                            tuneGrid = tunegrid, # Passing grid for tuning parameters
-                            ntree = 100)
-
-
-# Print trained model
-print(Valid_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(Valid_full_Feature$resample$Accuracy)))
-
-
-
-###################### Final model building using full train data ####################################
-
-set.seed(1234)
-
-# defining evaluation metric
-metric <- "Accuracy"
-
-
-# ntree: parameter that allows number of trees to grow
-# The mtry parameter setting: Number of variables selected as candidates at each split.
-# Square root of number of features
-mtry <- floor(sqrt(ncol(g_train_data[,-c(1:6)])))
-print("Value of mtry:")
-print(mtry)
-
-# Passing parameter into tunegrid
-tunegrid <- expand.grid(.mtry=mtry)
-set.seed(1234)
-
-# training the k nearest neighbour classifier
-final_trained_model <- train(x= g_full_train_data_all_genes, # Training Data
-                             y = Labels_g_full_train_data_all_genes,  # Class labels of training data
-                             method = "rf", # Train using Random Forest
-                             metric = metric, # Passing "Accuracy" as evaluation matric
-                             tuneGrid = tunegrid, # Passing grid for tuning parameters
-                             ntree = 100)
-
-
-# Print trained model
-print(final_trained_model)
-
-# standard deviation for 12023 genes
-print((sd(final_trained_model$resample$Accuracy)))
-##################################### test data prediction ####################################
-
-
-### Test set predicition
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_test_data_time_t <- as.factor(hold_out_test$True_Class_Label)
-
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_test_data_time_t_all_genes <- as.matrix(hold_out_test[,-c(1:6)])
-
-# Predicting Test Data
-# Passing test data without labels (without fist column which contains labels)
-(testPrediction1 <- predict(final_trained_model, newdata = g_test_data_time_t_all_genes))
-
-
-# Show Test Data
-print(Labels_g_test_data_time_t)
-
-
-### Performance measure
-
-# Display confusion matrix
-print(confusionMatrix(testPrediction1, Labels_g_test_data_time_t))
-
-
-############################### Linear SVM ##########################################
-
-############################### Input from user ##########################################
-
-# read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
-# required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
-Gene_Exp_Data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
-
-
-
-# Display the data
-Gene_Exp_Data[c(1:7),c(1:7)] # show first 7 rows
-
-
-# go inside the train test split
-total_data <- Gene_Exp_Data
-
-Data_target <- total_data %>% filter(Time > 0) 
-
-## First dividing data into training and test set (single time point - target time point)
-set.seed(7)
-# Dividing data set into train (50%) and test (50%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = Data_target$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-test_data <- Data_target[index_test, ]
-train_data <- Data_target[-index_test, ]
-
-
-dim(train_data)
-dim(test_data)
-
-set.seed(7)
-# Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = test_data$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-hold_out_test <- test_data[index_test, ]
-valid_data <- test_data[-index_test, ]
-
-dim(hold_out_test)
-dim(valid_data)
-
-# full train data for final model building
-full_train_data <- rbind(train_data,valid_data)
-
-# train test all time points
-g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
-g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
-g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
-g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
-
-
-
-# Display the dimensions of training and hold-out test set(rows columns)
-(dim(g_train_data))
-(dim(g_valid_data))
-(dim(g_test_data))
-(dim(g_full_train_data)) # for final model building
-
-# Display the data
-g_test_data[c(1:6),c(1:7)] # show first 6 rows
-
-
-# Train and test data
-g_train_data_all_genes <- g_train_data
-g_valid_data_all_genes <- g_valid_data
-g_test_data_all_genes <- g_test_data
-g_full_train_data_all_genes <- g_full_train_data
-
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_train_data_all_genes <- as.factor(g_train_data$True_Class_Label)
-Labels_g_valid_data_all_genes <- as.factor(g_valid_data$True_Class_Label)
-Labels_g_test_data_all_genes <- as.factor(g_test_data$True_Class_Label)
-Labels_g_full_train_data_all_genes <- as.factor(g_full_train_data_all_genes$True_Class_Label)
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_train_data_all_genes <- as.matrix(g_train_data_all_genes[,-c(1:6)])
-g_valid_data_all_genes <- as.matrix(g_valid_data_all_genes[,-c(1:6)])
-g_test_data_all_genes <- as.matrix(g_test_data_all_genes[,-c(1:6)])
-g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
-
-# training procedure
-
-#### Model building using all the Genes
-set.seed(1234)
-
-# Assigning values to the parameter C
-grid <- expand.grid(C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
-                          2^7, 2^9, 2^11, 2^13, 2^15))
-
-# training LSVM classifier
-train_full_Feature <- train(x= g_train_data_all_genes, # Training Data
-                            y = Labels_g_train_data_all_genes,  # Class labels of training data
-                            method = "svmLinear", # Train using LSVM
-                            tuneGrid = grid) # Passing training control parameters
-
-
-# Print trained model
-print(train_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(train_full_Feature$resample$Accuracy)))
-
-
-##################################### Validation data prediction ####################################
-
-set.seed(1234)
-
-# Assigning values to the parameter C
-grid <- expand.grid(C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
-                          2^7, 2^9, 2^11, 2^13, 2^15))
-
-# training LSVM classifier
-Valid_full_Feature <- train(x= g_valid_data_all_genes, # Training Data
-                            y = Labels_g_valid_data_all_genes,  # Class labels of training data
-                            method = "svmLinear", # Train using LSVM
-                            tuneGrid = grid) # Passing training control parameters
-# Print trained model
-print(Valid_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(Valid_full_Feature$resample$Accuracy)))
-
-
-
-###################### Final model building using full train data ####################################
-
-set.seed(1234)
-
-# Assigning values to the parameter C
-grid <- expand.grid(C = Valid_full_Feature$finalModel@param$C)
-
-# training LSVM classifier
-final_trained_model <- train(x= g_full_train_data_all_genes, # Training Data
-                             y = Labels_g_full_train_data_all_genes,  # Class labels of training data
-                             method = "svmLinear", # Train using LSVM
-                             tuneGrid = grid) # Passing training control parameters
-# Print trained model
-print(final_trained_model)
-
-# standard deviation for 12023 genes
-print((sd(final_trained_model$resample$Accuracy)))
-##################################### test data prediction ####################################
-
-
-### Test set predicition
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_test_data_time_t <- as.factor(hold_out_test$True_Class_Label)
-
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_test_data_time_t_all_genes <- as.matrix(hold_out_test[,-c(1:6)])
-
-# Predicting Test Data
-# Passing test data without labels (without fist column which contains labels)
-(testPrediction1 <- predict(final_trained_model, newdata = g_test_data_time_t_all_genes))
-
-
-# Show Test Data
-print(Labels_g_test_data_time_t)
-
-
-### Performance measure
-
-# Display confusion matrix
-print(confusionMatrix(testPrediction1, Labels_g_test_data_time_t))
-
-
-############################### SVM with RBF Kernel ##########################################
-
-############################### Input from user ##########################################
-
-# read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
-# required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
-Gene_Exp_Data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
-
-
-# Display the data
-Gene_Exp_Data[c(1:7),c(1:7)] # show first 7 rows
-
-
-# go inside the train test split
-total_data <- Gene_Exp_Data
-
-Data_target <- total_data %>% filter(Time > 0) 
-
-## First dividing data into training and test set (single time point - target time point)
-set.seed(7)
-# Dividing data set into train (50%) and test (50%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = Data_target$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-test_data <- Data_target[index_test, ]
-train_data <- Data_target[-index_test, ]
-
-
-dim(train_data)
-dim(test_data)
-
-set.seed(7)
-# Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = test_data$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-hold_out_test <- test_data[index_test, ]
-valid_data <- test_data[-index_test, ]
-
-dim(hold_out_test)
-dim(valid_data)
-
-# full train data for final model building
-full_train_data <- rbind(train_data,valid_data)
-
-# train test all time points
-g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
-g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
-g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
-g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
-
-
-
-# Display the dimensions of training and hold-out test set(rows columns)
-(dim(g_train_data))
-(dim(g_valid_data))
-(dim(g_test_data))
-(dim(g_full_train_data)) # for final model building
-
-# Display the data
-g_test_data[c(1:6),c(1:7)] # show first 6 rows
-
-
-# Train and test data
-g_train_data_all_genes <- g_train_data
-g_valid_data_all_genes <- g_valid_data
-g_test_data_all_genes <- g_test_data
-g_full_train_data_all_genes <- g_full_train_data
-
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_train_data_all_genes <- as.factor(g_train_data$True_Class_Label)
-Labels_g_valid_data_all_genes <- as.factor(g_valid_data$True_Class_Label)
-Labels_g_test_data_all_genes <- as.factor(g_test_data$True_Class_Label)
-Labels_g_full_train_data_all_genes <- as.factor(g_full_train_data_all_genes$True_Class_Label)
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_train_data_all_genes <- as.matrix(g_train_data_all_genes[,-c(1:6)])
-g_valid_data_all_genes <- as.matrix(g_valid_data_all_genes[,-c(1:6)])
-g_test_data_all_genes <- as.matrix(g_test_data_all_genes[,-c(1:6)])
-g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
-
-# training procedure
-
-#### Model building using all the Genes
-
-set.seed(1234)
-
-# Assigning values to the parameter C
-gridRBF <- expand.grid(sigma = c(2^-15, 2^-13, 2^-11, 2^-9, 2^-7, 2^-5, 2^-3, 
-                                 2^-1, 1, 2^1, 2^3),
-                       C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
-                             2^7, 2^9, 2^11, 2^13, 2^15))
-
-# training SVM classifier
-train_full_Feature <- train(x= g_train_data_all_genes, # Training Data
-                            y = Labels_g_train_data_all_genes,  # Class labels of training data
-                            method = "svmRadial", # Train using SVM
-                            tuneGrid = gridRBF) # Passing training control parameters
-
-# Print trained model
-print(train_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(train_full_Feature$resample$Accuracy)))
-
-
-##################################### Validation data prediction ####################################
-
-set.seed(1234)
-
-# Assigning values to the parameter C
-gridRBF <- expand.grid(sigma = c(2^-15, 2^-13, 2^-11, 2^-9, 2^-7, 2^-5, 2^-3, 
-                                 2^-1, 1, 2^1, 2^3),
-                       C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
-                             2^7, 2^9, 2^11, 2^13, 2^15))
-
-# training SVM classifier
-Valid_full_Feature <- train(x= g_valid_data_all_genes, # Training Data
-                            y = Labels_g_valid_data_all_genes,  # Class labels of training data
-                            method = "svmRadial", # Train using SVM
-                            tuneGrid = gridRBF) # Passing training control parameters
-
-# Print trained model
-print(Valid_full_Feature)
-
-# standard deviation for 12023 genes
-print((sd(Valid_full_Feature$resample$Accuracy)))
-
-
-###################### Final model building using full train data ####################################
-
-set.seed(1234)
-
-# Assigning values to the parameter C
-gridRBF <- expand.grid(sigma = Valid_full_Feature$bestTune$sigma,
-                       C = Valid_full_Feature$bestTune$C)
-
-# training SVM classifier
-final_trained_model <- train(x= g_full_train_data_all_genes, # Training Data
-                             y = Labels_g_full_train_data_all_genes,  # Class labels of training data
-                             method = "svmRadial", # Train using SVM
-                             tuneGrid = gridRBF) # Passing training control parameters
-
-# Print trained model
-print(final_trained_model)
-
-# standard deviation for 12023 genes
-print((sd(final_trained_model$resample$Accuracy)))
-##################################### test data prediction ####################################
-
-
-### Test set predicition
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_test_data_time_t <- as.factor(hold_out_test$True_Class_Label)
-
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_test_data_time_t_all_genes <- as.matrix(hold_out_test[,-c(1:6)])
-
-# Predicting Test Data
-# Passing test data without labels (without fist column which contains labels)
-(testPrediction1 <- predict(final_trained_model, newdata = g_test_data_time_t_all_genes))
-
-
-# Show Test Data
-print(Labels_g_test_data_time_t)
-
-
-### Performance measure
-
-# Display confusion matrix
-print(confusionMatrix(testPrediction1, Labels_g_test_data_time_t))
-
-
-############################### XGBoost ##########################################
-
-
-############################### Input from user ##########################################
-
-# read Gene expression data collected at two required time-points for all those subjects for which disease diagnosis need to be performed
-# required two time-points (t_1 = 0 hours i.e. healthy state and at time-point t_D i.e. diseased state or the time-point at which disease diagnosis has been requested)
-# if you want to use another another Gene Expression Dataset, just read another Gene Expression Dataset by giving path of that dataset in below statement.
-Gene_Exp_Data <- read.csv(file = "Gene_Expression_Dataset_4_GSE61754.csv", header = TRUE, sep=",", check.names = FALSE)
-
-# Display the data
-Gene_Exp_Data[c(1:7),c(1:7)] # show first 7 rows
-
-
-# go inside the train test split
-total_data <- Gene_Exp_Data
-
-Data_target <- total_data %>% filter(Time > 0) 
-
-## First dividing data into training and test set (single time point - target time point)
-set.seed(7)
-# Dividing data set into train (50%) and test (50%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = Data_target$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-test_data <- Data_target[index_test, ]
-train_data <- Data_target[-index_test, ]
-
-
-dim(train_data)
-dim(test_data)
-
-set.seed(7)
-# Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
-index_test <- createDataPartition(y = test_data$True_Class_Label,
-                                  p = 0.50, list = FALSE)
-hold_out_test <- test_data[index_test, ]
-valid_data <- test_data[-index_test, ]
-
-dim(hold_out_test)
-dim(valid_data)
-
-# full train data for final model building
-full_train_data <- rbind(train_data,valid_data)
-
-# train test all time points
-g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
-g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
-g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
-g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
-
-
-
-# Display the dimensions of training and hold-out test set(rows columns)
-(dim(g_train_data))
-(dim(g_valid_data))
-(dim(g_test_data))
-(dim(g_full_train_data)) # for final model building
-
-# Display the data
-g_test_data[c(1:6),c(1:7)] # show first 6 rows
-
-
-# Train and test data
-g_train_data_all_genes <- g_train_data
-g_valid_data_all_genes <- g_valid_data
-g_test_data_all_genes <- g_test_data
-g_full_train_data_all_genes <- g_full_train_data
-
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_train_data_all_genes <- as.factor(g_train_data$True_Class_Label)
-Labels_g_valid_data_all_genes <- as.factor(g_valid_data$True_Class_Label)
-Labels_g_test_data_all_genes <- as.factor(g_test_data$True_Class_Label)
-Labels_g_full_train_data_all_genes <- as.factor(g_full_train_data_all_genes$True_Class_Label)
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_train_data_all_genes <- as.matrix(g_train_data_all_genes[,-c(1:6)])
-g_valid_data_all_genes <- as.matrix(g_valid_data_all_genes[,-c(1:6)])
-g_test_data_all_genes <- as.matrix(g_test_data_all_genes[,-c(1:6)])
-g_full_train_data_all_genes <- as.matrix(g_full_train_data_all_genes[,-c(1:6)])
-
-
-Labels_g_train_data_all_genes <- recode(Labels_g_train_data_all_genes,'RVI'=1, 'Not RVI'=0)
-
-# training procedure
-
-set.seed(1234)
-train_full_Feature <- xgboost(data = g_train_data_all_genes, 
-                              label = Labels_g_train_data_all_genes, 
-                              max.depth = 6, 
-                              eta = 0.3, 
-                              nrounds = 100, 
-                              eval_metric = "error",
-                              objective = "binary:logistic",
-                              verbose = 1)
-
-
-
-
-
-# Print trained model
-print(train_full_Feature)
-
-# best performance on train (error)
-print(min(train_full_Feature$evaluation_log$train_error))
-
-# best performance on train (Accuracy)
-print(1-min(train_full_Feature$evaluation_log$train_error))
-
-##################################### Validation data prediction ####################################
-
-Labels_g_valid_data_all_genes <- recode(Labels_g_valid_data_all_genes,'RVI'=1, 'Not RVI'=0)
-
-# training procedure
-
-set.seed(1234)
-Valid_full_Feature <- xgboost(data = g_valid_data_all_genes, 
-                              label = Labels_g_valid_data_all_genes, 
-                              max.depth = 6, 
-                              eta = 0.3, 
-                              nrounds = 100, 
-                              eval_metric = "error",
-                              objective = "binary:logistic",
-                              verbose = 1)
-
-
-
-# Print valid model
-print(Valid_full_Feature)
-
-# best performance on valid (error)
-print(min(Valid_full_Feature$evaluation_log$train_error))
-
-# best performance on valid (Accuracy)
-print(1-min(Valid_full_Feature$evaluation_log$train_error))
-
-
-Valid_full_Feature$params
-
-
-###################### Final model building using full train data ####################################
-
-Labels_g_full_train_data_all_genes <- recode(Labels_g_full_train_data_all_genes,'RVI'=1, 'Not RVI'=0)
-
-# training procedure
-
-set.seed(1234)
-final_trained_model <- xgboost(data = g_full_train_data_all_genes, 
-                               label = Labels_g_full_train_data_all_genes, 
-                               max.depth = Valid_full_Feature$params$max_depth, 
-                               eta = Valid_full_Feature$params$eta, 
-                               nrounds = 100, 
-                               eval_metric = Valid_full_Feature$params$eval_metric,
-                               objective = Valid_full_Feature$params$objective,
-                               verbose = 1)
-
-
-
-# Print valid model
-print(final_trained_model)
-
-# best performance on valid (error)
-print(min(final_trained_model$evaluation_log$train_error))
-
-# best performance on valid (Accuracy)
-print(1-min(final_trained_model$evaluation_log$train_error))
-
-
-##################################### test data prediction Dataset 4 ####################################
-
-
-### Test set predicition
-# Converting Label vector into factor as per the requirement of train function of caret package
-Labels_g_test_data_time_t <- as.factor(hold_out_test$True_Class_Label)
-
-
-# Converting training and test data into matrix as per the requirement of train function of caret package
-g_test_data_time_t_all_genes <- as.matrix(hold_out_test[,-c(1:6)])
-
-# Predicting Test Data
-# Passing test data without labels (without fist column which contains labels)
-(testPrediction1 <- predict(final_trained_model, newdata = g_test_data_time_t_all_genes))
-
-for (i in 1:length(testPrediction1)) {
-  if(testPrediction1[i] < 0.5){
-    testPrediction1[i] <- 'Not RVI'
-  }else{
-    testPrediction1[i] <- 'RVI'
-  }
+library(caret) 
+library(dplyr) 
+library(e1071) 
+library(ggplot2)
+library(class) 
+library(randomForest) 
+library(pROC) 
+library(kernlab) 
+library(xgboost)
+
+# Provide seed values for data partition and ml model building
+
+data_partition_seed <- 7
+ml_model_seed <- 1234
+
+
+# Define an input path
+input_path <- "/Users/ghanshyam/My_Documents/Old_Mac_Backup/My_Documents/2021/Project_3_RQ_3_SCADDx_LOADDx/Datasets/Gene_Expression/"
+
+# Define an output path
+output_path <- "/Users/ghanshyam/My_Documents/Year_2023/BMC_Bioinformatics_2023/code_with_functions_revision_3_2023/code_SVS_existing_algos/KNN_D4_Train_Valid_Test_50_25_25_k_1_to_30/"
+
+# Read Gene Expression Datasets
+read_gene_expression_data <- function(filename,input_path) {
+  path_filename <- paste0(input_path, filename)
+  return(read.csv(file = path_filename, header = TRUE, sep=",", check.names = FALSE))
+}
+
+# Split data into train, validation, and test
+split_data <- function(Gene_Exp_Data, data_partition_seed) {
+  total_data <- Gene_Exp_Data
+  Data_target <- total_data %>% filter(Time > 0)
+  
+  # Split into train and test
+  set.seed(data_partition_seed)
+  index_test <- createDataPartition(y = Data_target$True_Class_Label,
+                                    p = 0.50, list = FALSE)
+  test_data <- Data_target[index_test, ]
+  train_data <- Data_target[-index_test, ]
+  
+  dim(train_data)
+  dim(test_data)
+  
+  # Split test data into holdout test and validation
+  set.seed(data_partition_seed)
+  index_test <- createDataPartition(y = test_data$True_Class_Label,
+                                    p = 0.50, list = FALSE)
+  hold_out_test <- test_data[index_test, ]
+  valid_data <- test_data[-index_test, ]
+  dim(hold_out_test)
+  dim(valid_data)
+  
+  # Full train data for final model building
+  full_train_data <- rbind(train_data,valid_data)
+  
+  # train test all time points
+  g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
+  g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
+  g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
+  g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
+  
+  # Display the data
+  g_test_data[c(1:6),c(1:7)] # show first 6 rows
+  
+  return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data))
+}
+
+# Train KNN model
+train_knn_model <- function(train_data, Labels_train_data, ml_model_seed) {
+  set.seed(ml_model_seed)
+  metric <- "Accuracy"
+  grid <- expand.grid(k = c(1:30))
+  trained_model <- train(x= train_data,
+                         y = Labels_train_data,
+                         method = "knn",
+                         metric = metric,
+                         tuneGrid = grid)
+  return(trained_model)
+}
+
+
+
+# Final Training function for KNN using best parameters
+final_knn_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_k) {
+  set.seed(ml_model_seed)
+  metric <- "Accuracy"
+  grid <- expand.grid(k = final_k)
+  trained_model <- train(x= train_data,
+                         y = Labels_train_data,
+                         method = "knn",
+                         metric = metric,
+                         tuneGrid = grid)
+  return(trained_model)
+}
+
+# Train Random Forest model 
+train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
+  
+  # defining evaluation metric
+  metric <- "Accuracy"
+  # ntree: parameter that allows number of trees to grow
+  # The mtry parameter setting: Number of variables selected as candidates at each split.
+  # Square root of number of features
+  mtry <- floor(sqrt(ncol(train_data)))
+  print("Value of mtry:")
+  print(mtry)
+  
+  # Passing parameter into tunegrid
+  grid <- expand.grid(.mtry=mtry)
+  set.seed(ml_model_seed)
+  trained_model <- train(x= train_data,
+                         y = Labels_train_data,
+                         method = "rf",
+                         metric = metric,
+                         tuneGrid = grid,
+                         ntree = 100)
+  return(trained_model)
+}
+
+# Final Training function for RF using best parameters
+final_rf_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_mtry, final_n_tree) {
+  
+  # defining evaluation metric
+  metric <- "Accuracy"
+  
+  # Passing parameter into tunegrid
+  grid <- expand.grid(.mtry=final_mtry)
+  set.seed(ml_model_seed)
+  trained_model <- train(x= train_data,
+                         y = Labels_train_data,
+                         method = "rf",
+                         metric = metric,
+                         tuneGrid = grid,
+                         ntree = final_n_tree)
+  return(trained_model)
+}
+
+# Train LSVM model 
+train_LSVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
+  set.seed(ml_model_seed)
+  
+  # Assigning values to the parameter C
+  grid <- expand.grid(C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
+                            2^7, 2^9, 2^11, 2^13, 2^15))
+  
+  # training LSVM classifier
+  trained_model <- train(x= train_data, # Training Data
+                         y = Labels_train_data,  # Class labels of training data
+                         method = "svmLinear", # Train using LSVM
+                         tuneGrid = grid) # Passing training control parameters
+  # Print trained model
+  return(trained_model)
+}
+
+# Final Training function for LSVM using best parameters
+final_LSVM_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_C) {
+  set.seed(ml_model_seed)
+  
+  # Assigning values to the parameter C
+  grid <- expand.grid(C = final_C)
+  
+  # training LSVM classifier
+  trained_model <- train(x= train_data, # Training Data
+                         y = Labels_train_data,  # Class labels of training data
+                         method = "svmLinear", # Train using LSVM
+                         tuneGrid = grid) # Passing training control parameters
+  # Print trained model
+  return(trained_model)
   
 }
 
-# Show predicted labels
-print(testPrediction1)
-# Show Test Data
-print(Labels_g_test_data_time_t)
+# Train RBF SVM model 
+train_RBF_SVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
+  set.seed(ml_model_seed)
+  
+  # Assigning values to the parameter sigma and C
+  gridRBF <- expand.grid(sigma = c(2^-15, 2^-13, 2^-11, 2^-9, 2^-7, 2^-5, 2^-3, 
+                                   2^-1, 1, 2^1, 2^3),
+                         C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
+                               2^7, 2^9, 2^11, 2^13, 2^15))
+  
+  # training LSVM classifier
+  trained_model <- train(x= train_data, # Training Data
+                         y = Labels_train_data,  # Class labels of training data
+                         method = "svmRadial", # Train using RBF SVM
+                         tuneGrid = gridRBF) # Passing training control parameters
+  # Print trained model
+  return(trained_model)
+}
+
+# Final Training function for RBF SVM using best parameters
+final_RBF_SVM_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_C, final_sigma) {
+  set.seed(ml_model_seed)
+  
+  # Assigning values to the parameter C
+  gridRBF <- expand.grid(sigma = final_sigma,
+                         C = final_C)
+  
+  # training RBF SVMclassifier
+  trained_model <- train(x= train_data, # Training Data
+                         y = Labels_train_data,  # Class labels of training data
+                         method = "svmRadial", # Train using RBF SVM
+                         tuneGrid = gridRBF) # Passing training control parameters
+  # Print trained model
+  return(trained_model)
+  
+}
 
 
-### Performance measure
+# Train XGBoost model 
+train_XGBoost_model <- function(train_data, Labels_train_data, ml_model_seed) {
+  set.seed(ml_model_seed)
+  Labels_train_data <- recode(Labels_train_data,'RVI'=1, 'Not RVI'=0)
+  
+  # training procedure
+  trained_model <- xgboost(data = train_data, 
+                           label = Labels_train_data, 
+                           max.depth = 6, 
+                           eta = 0.3, 
+                           nrounds = 100, 
+                           eval_metric = "error",
+                           objective = "binary:logistic",
+                           verbose = 1)
+  
+  # Print trained model
+  return(trained_model)
+}
 
-# Display confusion matrix Dataset 4
-print(confusionMatrix(as.factor(testPrediction1), Labels_g_test_data_time_t))
+
+final_XGBoost_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_max_depth, final_eta) {
+  set.seed(ml_model_seed)
+  Labels_train_data <- recode(Labels_train_data,'RVI'=1, 'Not RVI'=0)
+  
+  # training procedure
+  trained_model <- xgboost(data = train_data, 
+                           label = Labels_train_data, 
+                           max.depth = final_max_depth, 
+                           eta = final_eta, 
+                           nrounds = 100, 
+                           eval_metric = "error",
+                           objective = "binary:logistic",
+                           verbose = 1)
+  
+  # Print trained model
+  return(trained_model)
+}
+
+# Write confusion matrix results to TXT
+write_confusion_to_txt <- function(predictions, actual_labels, model_name, dataset_name, output_path) {
+  conf_matrix_result <- confusionMatrix(predictions, actual_labels)
+  
+  
+  # Extract the matrix and statistics
+  conf_matrix_table <- conf_matrix_result$table
+  overall_stats <- conf_matrix_result$overall
+  class_stats <- conf_matrix_result$byClass
+  
+  dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+  
+  # Create the filename
+  filename <- paste0(output_path, model_name, "_", dataset_name, "_confusion_matrix.txt")
+  
+  # Print confusion matrix
+  print(paste0("Print confusion matrix for hold-out test set for ", model_name, " ", "for ", dataset_name, ":"))
+  print(conf_matrix_result)
+  
+  # Open a connection for writing
+  con <- file(filename, "w")
+  
+  # Write the confusion matrix and stats to the text file
+  write("Confusion Matrix:", con)
+  write.table(conf_matrix_table, con, sep = "\t")
+  
+  write("\nOverall Statistics:", con)
+  write.table(as.data.frame(overall_stats), con, sep = "\t", row.names = TRUE)
+  
+  write("\nClass Statistics:", con)
+  write.table(as.data.frame(t(class_stats)), con, sep = "\t", row.names = TRUE)
+  
+  # Close the connection
+  close(con)
+}
 
 
 
+# Main function
+main_function <- function() {
+  # Read datasets
+  dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv")
+  for(dataset_name in dataset_names) {
+    Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
+    
+    # Split data
+    splits <- split_data(Gene_Exp_Data, data_partition_seed)
+    
+    # Model building using training data
+    trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
+                                         as.factor(splits$train_data$True_Class_Label), ml_model_seed)
+
+    # Print KNN training results
+    print("KNN training results:")
+    print(trained_knn_model)
+
+    # Performing validation and hyper parameter selection using validation data
+    validation_knn_model <- train_knn_model(as.matrix(splits$valid_data[,-c(1:6)]),
+                                            as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+
+
+    # Print KNN validation results
+    print("KNN validation results:")
+    print(validation_knn_model)
+
+    # Selecting final model parameters
+    final_k <- validation_knn_model$finalModel$tuneValue[1]
+
+    # Print final parameter values
+    print("Final value of k:")
+    print(final_k)
+
+    # Final model building using KNN
+    final_knn_trained_model <- final_knn_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                           as.factor(splits$full_train_data$True_Class_Label),
+                                                           ml_model_seed, final_k)
+
+
+    # Test KNN
+    knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+
+    # Write results to a text file
+    write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
+
+    # Code for RF model building, validation and evaluation
+    # Model building using training data
+    trained_rf_model <- train_rf_model(as.matrix(splits$train_data[,-c(1:6)]),
+                                       as.factor(splits$train_data$True_Class_Label), ml_model_seed)
+
+    # Print RF training results
+    print("RF training results:")
+    print(trained_rf_model)
+
+    # Final model building using RF
+    validation_rf_model <- train_rf_model(as.matrix(splits$valid_data[,-c(1:6)]),
+                                           as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+
+    # Print RF validation results
+    print("RF validation results:")
+    print(validation_rf_model)
+
+    # Selecting final model parameters
+    final_mtry <- validation_rf_model$finalModel$mtry
+    final_n_tree <- validation_rf_model$finalModel$ntree
+
+    # Print final parameter values
+    print("Final value of mtry (na) is:")
+    print(final_mtry)
+    print("Final value of n_tree (nt) is:")
+    print(final_n_tree)
+
+    # Performing validation and hyper parameter selection using validation data
+    final_rf_trained_model <- final_rf_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                         as.factor(splits$full_train_data$True_Class_Label),
+                                                         ml_model_seed, final_mtry, final_n_tree)
+
+    # Test RF model
+    rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+
+    # Write results to a text file
+    write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RF", dataset_name, output_path)
+
+    # Code for LSVM model building, validation and evaluation
+    # Model building using training data
+    trained_LSVM_model <- train_LSVM_model(as.matrix(splits$train_data[,-c(1:6)]),
+                                           as.factor(splits$train_data$True_Class_Label), ml_model_seed)
+
+    # Print RF training results
+    print("LSVM training results:")
+    print(trained_LSVM_model)
+
+    # Performing validation and hyper parameter selection using validation data
+    validation_LSVM_model <- train_LSVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
+                                              as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+
+    # Print RF validation results
+    print("LSVM validation results:")
+    print(validation_LSVM_model)
+
+    # Selecting final model parameters
+    final_C <- validation_LSVM_model$finalModel@param$C
+
+
+    # Print final parameter values
+    print("Final value of parameter C of LSVM:")
+    print(final_C)
+
+    # Final model building using LSVM
+    final_LSVM_trained_model <- final_LSVM_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                             as.factor(splits$full_train_data$True_Class_Label),
+                                                             ml_model_seed, final_C)
+
+    # Test RF model
+    LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+
+    # Write results to a text file
+    write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "LSVM", dataset_name, output_path)
+
+    # Code for RBF_SVM model building, validation and evaluation
+    # Model building using training data
+    trained_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$train_data[,-c(1:6)]),
+                                                 as.factor(splits$train_data$True_Class_Label), ml_model_seed)
+
+    # Print RBF_SVM training results
+    print("RBF SVM training results:")
+    print(trained_RBF_SVM_model)
+
+    # Performing validation and hyper parameter selection using validation data
+    validation_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
+                                                    as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+
+    # Print RBF_SVM validation results
+    print("RBF SVM validation results:")
+    print(validation_RBF_SVM_model)
+
+    # Selecting final model parameters
+    final_sigma <- validation_RBF_SVM_model$bestTune$sigma
+    final_C = validation_RBF_SVM_model$bestTune$C
+
+
+    # Print final parameter values
+    print("Final value of parameter C of RBF SVM:")
+    print(final_C)
+    print("Final value of parameter sigma of RBF SVM:")
+    print(final_sigma)
+
+    # Final model building using SVM
+    final_RBF_SVM_trained_model <- final_RBF_SVM_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                                   as.factor(splits$full_train_data$True_Class_Label),
+                                                                   ml_model_seed, final_C, final_sigma)
+
+    # Test RF model
+    SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+
+    # Write results to a text file
+    write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RBF_SVM", dataset_name, output_path)
+
+    # Code for XGBoost model building, validation and evaluation
+    # Model building using training data
+    trained_XGBoost_model <- train_XGBoost_model(as.matrix(splits$train_data[,-c(1:6)]),
+                                                 as.factor(splits$train_data$True_Class_Label), ml_model_seed)
+    
+    # Print XGBoost training results
+    print("XGBoost training results:")
+    print(trained_XGBoost_model)
+    
+    # best performance on train data (error)
+    print(min(trained_XGBoost_model$evaluation_log$train_error))
+    
+    # best performance on train data (Accuracy)
+    print(1-min(trained_XGBoost_model$evaluation_log$train_error))
+    
+    # Performing validation and hyper parameter selection using validation data
+    validation_XGBoost_model <- train_XGBoost_model(as.matrix(splits$valid_data[,-c(1:6)]),
+                                                    as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+    
+    # Print XGBoost validation results
+    print("XGBoost validation results:")
+    print(validation_XGBoost_model)
+    
+    # Selecting final model parameters
+    final_max_depth <- validation_XGBoost_model$params$max_depth
+    final_eta <- validation_XGBoost_model$params$eta
+    
+    # best performance on valid (error)
+    print(min(validation_XGBoost_model$evaluation_log$train_error))
+    
+    # best performance on valid (Accuracy)
+    print(1-min(validation_XGBoost_model$evaluation_log$train_error))
+    
+    
+    # Print final parameter values
+    print("Final value of parameter max depth of XGBoost:")
+    print(final_max_depth)
+    print("Final value of parameter eta of XGBoost:")
+    print(final_eta)
+
+    
+    # Final model building using XGBoost
+    final_XGBoost_trained_model <- final_XGBoost_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                                   as.factor(splits$full_train_data$True_Class_Label),
+                                                                   ml_model_seed, final_max_depth, final_eta)
+    
+    # Test XGBoost model
+    XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+    
+    for (i in 1:length(XGBoost_predictions)) {
+      if(XGBoost_predictions[i] < 0.5){
+        XGBoost_predictions[i] <- 'Not RVI'
+      }else{
+        XGBoost_predictions[i] <- 'RVI'
+      }
+      
+    }
+    
+    # Write results to a text file
+    write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test$True_Class_Label), "XGBoost", dataset_name, output_path)
+    
+  }
+}
+
+main_function()
