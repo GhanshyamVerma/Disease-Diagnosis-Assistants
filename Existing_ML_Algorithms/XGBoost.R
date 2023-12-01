@@ -3,7 +3,7 @@
 
 # Required packages
 required_packages <- c("caret", "dplyr", "e1071", "ggplot2", "class", 
-                       "randomForest", "pROC", "kernlab", "xgboost")
+                       "pROC", "xgboost")
 
 # Check if required r libraries are already installed or not
 new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
@@ -32,7 +32,7 @@ ml_model_seed <- 1234
 input_path <- "/Datasets/Gene_Expression/"
 
 # Define an output path
-output_path <- "/XGBoost/"
+output_path <- "/All_ML_Models_Results/"
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
@@ -117,37 +117,58 @@ final_XGBoost_training_function <- function(train_data, Labels_train_data, ml_mo
   return(trained_model)
 }
 
+
 # Write confusion matrix results to TXT
 write_confusion_to_txt <- function(predictions, actual_labels, model_name, dataset_name, output_path) {
-  conf_matrix_result <- confusionMatrix(predictions, actual_labels)
-  
-  
-  # Extract the matrix and statistics
-  conf_matrix_table <- conf_matrix_result$table
-  overall_stats <- conf_matrix_result$overall
-  class_stats <- conf_matrix_result$byClass
+  # Ensure that both predictions and actual_labels are factors
+  predictions <- factor(predictions)
+  actual_labels <- factor(actual_labels)
   
   dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
   
   # Create the filename
   filename <- paste0(output_path, model_name, "_", dataset_name, "_confusion_matrix.txt")
   
-  # Print confusion matrix
-  print(paste0("Print confusion matrix for hold-out test set for ", model_name, " ", "for ", dataset_name, ":"))
-  print(conf_matrix_result)
-  
   # Open a connection for writing
   con <- file(filename, "w")
   
-  # Write the confusion matrix and stats to the text file
-  write("Confusion Matrix:", con)
-  write.table(conf_matrix_table, con, sep = "\t")
-  
-  write("\nOverall Statistics:", con)
-  write.table(as.data.frame(overall_stats), con, sep = "\t", row.names = TRUE)
-  
-  write("\nClass Statistics:", con)
-  write.table(as.data.frame(t(class_stats)), con, sep = "\t", row.names = TRUE)
+  if(length(levels(predictions)) == 1 && length(levels(actual_labels)) == 1) {
+    # Calculate accuracy for a single class
+    accuracy <- sum(predictions == actual_labels) / length(actual_labels)
+    write("Only one class present in both predictions and actual labels. Calculated accuracy for single class.", con)
+    write("Accuracy:", con)
+    write(accuracy, con)
+    
+    print("Only one class present in both predictions and actual labels.")
+    print(paste0("Calculated accuracy for single class: ", accuracy))
+    print(accuracy)
+  } else {
+    # Ensure both have the same levels
+    levels_union <- union(levels(predictions), levels(actual_labels))
+    predictions <- factor(predictions, levels = levels_union)
+    actual_labels <- factor(actual_labels, levels = levels_union)
+    
+    # Compute the confusion matrix
+    conf_matrix_result <- confusionMatrix(predictions, actual_labels)
+    
+    # Extract the matrix and statistics
+    conf_matrix_table <- conf_matrix_result$table
+    overall_stats <- conf_matrix_result$overall
+    class_stats <- conf_matrix_result$byClass
+    
+    # Print and write confusion matrix
+    print(paste0("Print confusion matrix for hold-out test set for ", model_name, " ", "for ", dataset_name, ":"))
+    print(conf_matrix_result)
+    
+    write("Confusion Matrix:", con)
+    write.table(conf_matrix_table, con, sep = "\t")
+    
+    write("\nOverall Statistics:", con)
+    write.table(as.data.frame(overall_stats), con, sep = "\t", row.names = TRUE)
+    
+    write("\nClass Statistics:", con)
+    write.table(as.data.frame(t(class_stats)), con, sep = "\t", row.names = TRUE)
+  }
   
   # Close the connection
   close(con)
@@ -158,14 +179,15 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 # Main function
 main_function <- function() {
   # Read datasets
-  dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv")
+  dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
   for(dataset_name in dataset_names) {
     Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
     
     # Split data
     splits <- split_data(Gene_Exp_Data, data_partition_seed)
     
-    # Code for XGBoost model building, validation, and evaluation
+
+    # Code for XGBoost model building, validation and evaluation
     # Model building using training data
     trained_XGBoost_model <- train_XGBoost_model(as.matrix(splits$train_data[,-c(1:6)]),
                                                  as.factor(splits$train_data$True_Class_Label), ml_model_seed)
@@ -206,12 +228,12 @@ main_function <- function() {
     print(final_eta)
 
     
-    # Performing validation and hyper parameter selection using validation data
+    # Final model building using XGBoost
     final_XGBoost_trained_model <- final_XGBoost_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                                    as.factor(splits$full_train_data$True_Class_Label),
                                                                    ml_model_seed, final_max_depth, final_eta)
     
-    # Test RF model
+    # Test XGBoost model
     XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     
     for (i in 1:length(XGBoost_predictions)) {
@@ -230,3 +252,4 @@ main_function <- function() {
 }
 
 main_function()
+
