@@ -183,10 +183,6 @@ main_function <- function() {
     # Split data
     splits <- split_data(Gene_Exp_Data, data_partition_seed)
     
-    # Model building using training data
-    trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
-                                         as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
     
     # Code for LSVM model building, validation and evaluation
     # Model building using training data
