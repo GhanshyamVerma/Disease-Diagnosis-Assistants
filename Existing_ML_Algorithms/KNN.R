@@ -2,8 +2,7 @@
 # R version 3.6.2 or above
 
 # Required packages
-required_packages <- c("caret", "dplyr", "e1071", "ggplot2", "class", 
-                       "randomForest", "pROC", "kernlab", "xgboost")
+required_packages <- c("caret", "dplyr", "e1071", "ggplot2", "class", "pROC")
 
 # Check if required r libraries are already installed or not
 new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
