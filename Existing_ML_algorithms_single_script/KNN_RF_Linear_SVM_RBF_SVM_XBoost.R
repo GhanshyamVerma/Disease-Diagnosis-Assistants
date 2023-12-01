@@ -373,7 +373,7 @@ main_function <- function() {
     print("RF training results:")
     print(trained_rf_model)
 
-    # Final model building using RF
+    # Performing validation and hyper parameter selection using validation data
     validation_rf_model <- train_rf_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                            as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
 
@@ -391,7 +391,8 @@ main_function <- function() {
     print("Final value of n_tree (nt) is:")
     print(final_n_tree)
 
-    # Performing validation and hyper parameter selection using validation data
+    
+    # Final model building using RF
     final_rf_trained_model <- final_rf_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                          as.factor(splits$full_train_data$True_Class_Label),
                                                          ml_model_seed, final_mtry, final_n_tree)
@@ -407,7 +408,7 @@ main_function <- function() {
     trained_LSVM_model <- train_LSVM_model(as.matrix(splits$train_data[,-c(1:6)]),
                                            as.factor(splits$train_data$True_Class_Label), ml_model_seed)
 
-    # Print RF training results
+    # Print LSVM training results
     print("LSVM training results:")
     print(trained_LSVM_model)
 
@@ -415,7 +416,7 @@ main_function <- function() {
     validation_LSVM_model <- train_LSVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                               as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
 
-    # Print RF validation results
+    # Print LSVM validation results
     print("LSVM validation results:")
     print(validation_LSVM_model)
 
@@ -432,7 +433,7 @@ main_function <- function() {
                                                              as.factor(splits$full_train_data$True_Class_Label),
                                                              ml_model_seed, final_C)
 
-    # Test RF model
+    # Test LSVM model
     LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
 
     # Write results to a text file
@@ -471,7 +472,7 @@ main_function <- function() {
                                                                    as.factor(splits$full_train_data$True_Class_Label),
                                                                    ml_model_seed, final_C, final_sigma)
 
-    # Test RF model
+    # Test RBF_SVM model
     SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
 
     # Write results to a text file
