@@ -210,7 +210,7 @@ final_RBF_SVM_training_function <- function(train_data, Labels_train_data, ml_mo
   gridRBF <- expand.grid(sigma = final_sigma,
                          C = final_C)
   
-  # training RBF SVMclassifier
+  # training RBF SVM classifier
   trained_model <- train(x= train_data, # Training Data
                          y = Labels_train_data,  # Class labels of training data
                          method = "svmRadial", # Train using RBF SVM
@@ -259,37 +259,58 @@ final_XGBoost_training_function <- function(train_data, Labels_train_data, ml_mo
   return(trained_model)
 }
 
+
 # Write confusion matrix results to TXT
 write_confusion_to_txt <- function(predictions, actual_labels, model_name, dataset_name, output_path) {
-  conf_matrix_result <- confusionMatrix(predictions, actual_labels)
-  
-  
-  # Extract the matrix and statistics
-  conf_matrix_table <- conf_matrix_result$table
-  overall_stats <- conf_matrix_result$overall
-  class_stats <- conf_matrix_result$byClass
+  # Ensure that both predictions and actual_labels are factors
+  predictions <- factor(predictions)
+  actual_labels <- factor(actual_labels)
   
   dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
   
   # Create the filename
   filename <- paste0(output_path, model_name, "_", dataset_name, "_confusion_matrix.txt")
   
-  # Print confusion matrix
-  print(paste0("Print confusion matrix for hold-out test set for ", model_name, " ", "for ", dataset_name, ":"))
-  print(conf_matrix_result)
-  
   # Open a connection for writing
   con <- file(filename, "w")
   
-  # Write the confusion matrix and stats to the text file
-  write("Confusion Matrix:", con)
-  write.table(conf_matrix_table, con, sep = "\t")
-  
-  write("\nOverall Statistics:", con)
-  write.table(as.data.frame(overall_stats), con, sep = "\t", row.names = TRUE)
-  
-  write("\nClass Statistics:", con)
-  write.table(as.data.frame(t(class_stats)), con, sep = "\t", row.names = TRUE)
+  if(length(levels(predictions)) == 1 && length(levels(actual_labels)) == 1) {
+    # Calculate accuracy for a single class
+    accuracy <- sum(predictions == actual_labels) / length(actual_labels)
+    write("Only one class present in both predictions and actual labels. Calculated accuracy for single class.", con)
+    write("Accuracy:", con)
+    write(accuracy, con)
+    
+    print("Only one class present in both predictions and actual labels.")
+    print(paste0("Calculated accuracy for single class: ", accuracy))
+    print(accuracy)
+  } else {
+    # Ensure both have the same levels
+    levels_union <- union(levels(predictions), levels(actual_labels))
+    predictions <- factor(predictions, levels = levels_union)
+    actual_labels <- factor(actual_labels, levels = levels_union)
+    
+    # Compute the confusion matrix
+    conf_matrix_result <- confusionMatrix(predictions, actual_labels)
+    
+    # Extract the matrix and statistics
+    conf_matrix_table <- conf_matrix_result$table
+    overall_stats <- conf_matrix_result$overall
+    class_stats <- conf_matrix_result$byClass
+    
+    # Print and write confusion matrix
+    print(paste0("Print confusion matrix for hold-out test set for ", model_name, " ", "for ", dataset_name, ":"))
+    print(conf_matrix_result)
+    
+    write("Confusion Matrix:", con)
+    write.table(conf_matrix_table, con, sep = "\t")
+    
+    write("\nOverall Statistics:", con)
+    write.table(as.data.frame(overall_stats), con, sep = "\t", row.names = TRUE)
+    
+    write("\nClass Statistics:", con)
+    write.table(as.data.frame(t(class_stats)), con, sep = "\t", row.names = TRUE)
+  }
   
   # Close the connection
   close(con)
@@ -521,3 +542,4 @@ main_function <- function() {
 }
 
 main_function()
+
