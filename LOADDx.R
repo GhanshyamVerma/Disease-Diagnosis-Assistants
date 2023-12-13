@@ -1,3 +1,8 @@
+## MM NOTE:
+## Stil not organised into functions, and a lot of redundancy between this and SCADDx.R.
+## Also, this is not integreated with the Existing Algorithms code 
+## -- I think the reviewer wanted to see a common codebase, which would allow the reviewer to verify that you are using the same data in the same partitions etc for all experiments.
+
 # Required Programming Language
 # R version 3.6.2 or above
 

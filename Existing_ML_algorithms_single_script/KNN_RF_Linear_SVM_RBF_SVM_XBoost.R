@@ -29,14 +29,16 @@ ml_model_seed <- 1234
 
 
 # Define an input path
-input_path <- "/Datasets/Gene_Expression/"
+#input_path <- "/Datasets/Gene_Expression/" ## MM NOTE this folder does not match structure of GitHub - also missing files in GitHub
+input_path <- "./Datasets/" # MM NOTE added "." at start to make it a relative path
 
 # Define an output path
-output_path <- "/All_ML_Models_Results/"
+output_path <- "./All_ML_Models_Results/" ## MM NOTE likewise added "." -- note that you should create an empty folder in GitHub with this name to stop errors, or add code to create folder if it does not exist
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
   path_filename <- paste0(input_path, filename)
+  print(paste0("Reading CSV file called ", path_filename))
   return(read.csv(file = path_filename, header = TRUE, sep=",", check.names = FALSE))
 }
 
@@ -80,10 +82,11 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
 }
 
 # Train KNN model
-train_knn_model <- function(train_data, Labels_train_data, ml_model_seed) {
+# If k_vals is specified, train using this, which might be a single value or a set of values for a grid search. Otherwise, use default settings for a gid search.
+train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals=c(1:30)) {
   set.seed(ml_model_seed)
   metric <- "Accuracy"
-  grid <- expand.grid(k = c(1:30))
+  grid <- expand.grid(k = k_vals)
   trained_model <- train(x= train_data,
                          y = Labels_train_data,
                          method = "knn",
@@ -93,19 +96,21 @@ train_knn_model <- function(train_data, Labels_train_data, ml_model_seed) {
 }
 
 
-
+# MM NOTE: because I added a default parameter to train_knn_model(), final_knn_training_function() is no longer needed
 # Final Training function for KNN using best parameters
-final_knn_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_k) {
-  set.seed(ml_model_seed)
-  metric <- "Accuracy"
-  grid <- expand.grid(k = final_k)
-  trained_model <- train(x= train_data,
-                         y = Labels_train_data,
-                         method = "knn",
-                         metric = metric,
-                         tuneGrid = grid)
-  return(trained_model)
-}
+#final_knn_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_k) {
+#  train_knn_model(train_data, Labels_train_data, ml_model_seed, final_k)
+#}
+#  set.seed(ml_model_seed)
+#  metric <- "Accuracy"
+#  grid <- expand.grid(k = final_k)
+#  trained_model <- train(x= train_data,
+#                         y = Labels_train_data,
+#                         method = "knn",
+#                         metric = metric,
+#                         tuneGrid = grid)
+#  return(trained_model)
+#}
 
 # Train Random Forest model 
 train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
@@ -273,7 +278,8 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
   
   # Open a connection for writing
   con <- file(filename, "w")
-  
+  print(paste0("Writing results to ", output_path))
+
   if(length(levels(predictions)) == 1 && length(levels(actual_labels)) == 1) {
     # Calculate accuracy for a single class
     accuracy <- sum(predictions == actual_labels) / length(actual_labels)
@@ -283,7 +289,6 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
     
     print("Only one class present in both predictions and actual labels.")
     print(paste0("Calculated accuracy for single class: ", accuracy))
-    print(accuracy)
   } else {
     # Ensure both have the same levels
     levels_union <- union(levels(predictions), levels(actual_labels))
@@ -321,7 +326,8 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 # Main function
 main_function <- function() {
   # Read datasets
-  dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
+  #dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
+  dataset_names <- c("Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv") ## MM NOTE first two not in GitHub
   for(dataset_name in dataset_names) {
     Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
     
@@ -329,6 +335,8 @@ main_function <- function() {
     splits <- split_data(Gene_Exp_Data, data_partition_seed)
     
     # Model building using training data
+    print("Starting KNN learning using training data")
+
     trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
                                          as.factor(splits$train_data$True_Class_Label), ml_model_seed)
 
@@ -342,18 +350,22 @@ main_function <- function() {
 
 
     # Print KNN validation results
-    print("KNN validation results:")
-    print(validation_knn_model)
+    #print(paste0("KNN validation results: ", validation_knn_model))
 
     # Selecting final model parameters
     final_k <- validation_knn_model$finalModel$tuneValue[1]
 
     # Print final parameter values
-    print("Final value of k:")
-    print(final_k)
+    print(paste0("Final value of k: ", final_k))
+
+    ## MM NOTE: Please note that this is the output I get from running the code to here (inconsistent values of k):
+    ##  Accuracy was used to select the optimal model using the largest value.
+    ##  The final value used for the model was k = 6.
+    ##  [1] "Final value of k: 1"
 
     # Final model building using KNN
-    final_knn_trained_model <- final_knn_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
+    # MM NOTE because of muy rewrite of train_knn_model(), final_knn_training_function() is no longer needed
+    final_knn_trained_model <- train_knn_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                            as.factor(splits$full_train_data$True_Class_Label),
                                                            ml_model_seed, final_k)
 
@@ -364,8 +376,11 @@ main_function <- function() {
     # Write results to a text file
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
 
+    return() # MM NOTE TEMPORARY LINE TO STOP EARLY -- PLEASE DELETE
+
     # Code for RF model building, validation and evaluation
     # Model building using training data
+    print("Starting RF learning using training data")
     trained_rf_model <- train_rf_model(as.matrix(splits$train_data[,-c(1:6)]),
                                        as.factor(splits$train_data$True_Class_Label), ml_model_seed)
 
