@@ -29,8 +29,8 @@ ml_model_seed <- 1234
 
 
 # Define an input path
-#input_path <- "/Datasets/Gene_Expression/" ## MM NOTE this folder does not match structure of GitHub - also missing files in GitHub
 input_path <- "./Datasets/" # MM NOTE added "." at start to make it a relative path
+
 
 # Define an output path
 output_path <- "./All_ML_Models_Results/" ## MM NOTE likewise added "." -- note that you should create an empty folder in GitHub with this name to stop errors, or add code to create folder if it does not exist
@@ -351,6 +351,11 @@ main_function <- function() {
 
     # Print KNN validation results
     #print(paste0("KNN validation results: ", validation_knn_model))
+    cat("\n")
+    print("Starting validation process:")
+    cat("\n")
+    print("KNN validation results:")
+    print(validation_knn_model)
 
     # Selecting final model parameters
     final_k <- validation_knn_model$finalModel$tuneValue[1]
@@ -364,13 +369,16 @@ main_function <- function() {
     ##  [1] "Final value of k: 1"
 
     # Final model building using KNN
-    # MM NOTE because of muy rewrite of train_knn_model(), final_knn_training_function() is no longer needed
+    # MM NOTE because of my rewrite of train_knn_model(), final_knn_training_function() is no longer needed
     final_knn_trained_model <- train_knn_model(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                           as.factor(splits$full_train_data$True_Class_Label),
-                                                           ml_model_seed, final_k)
+                                                         as.factor(splits$full_train_data$True_Class_Label),
+                                                         ml_model_seed, final_k)
 
 
     # Test KNN
+    cat("\n")
+    print("Starting prediction for holdout testset:")
+    cat("\n")
     knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
 
     # Write results to a text file
