@@ -29,11 +29,11 @@ ml_model_seed <- 1234
 
 
 # Define an input path
-input_path <- "./Datasets/" # MM NOTE added "." at start to make it a relative path
+input_path <- "./Datasets/"
 
 
 # Define an output path
-output_path <- "./All_ML_Models_Results/" ## MM NOTE likewise added "." -- note that you should create an empty folder in GitHub with this name to stop errors, or add code to create folder if it does not exist
+output_path <- "./All_ML_Models_Results/" 
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
@@ -82,7 +82,7 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
 }
 
 # Train KNN model
-# If k_vals is specified, train using this, which might be a single value or a set of values for a grid search. Otherwise, use default settings for a gid search.
+# If k_vals is specified, train using this, which might be a single value or a set of values for a grid search. Otherwise, use default settings for a grid search.
 train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals=c(1:30)) {
   set.seed(ml_model_seed)
   metric <- "Accuracy"
@@ -96,33 +96,15 @@ train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals
 }
 
 
-# MM NOTE: because I added a default parameter to train_knn_model(), final_knn_training_function() is no longer needed
-# Final Training function for KNN using best parameters
-#final_knn_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_k) {
-#  train_knn_model(train_data, Labels_train_data, ml_model_seed, final_k)
-#}
-#  set.seed(ml_model_seed)
-#  metric <- "Accuracy"
-#  grid <- expand.grid(k = final_k)
-#  trained_model <- train(x= train_data,
-#                         y = Labels_train_data,
-#                         method = "knn",
-#                         metric = metric,
-#                         tuneGrid = grid)
-#  return(trained_model)
-#}
-
 # Train Random Forest model 
-train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
+train_rf_model <- function(train_data, Labels_train_data, ml_model_seed, mtry = floor(sqrt(ncol(train_data))), ntree_vals = 100) {
   
   # defining evaluation metric
   metric <- "Accuracy"
   # ntree: parameter that allows number of trees to grow
   # The mtry parameter setting: Number of variables selected as candidates at each split.
   # Square root of number of features
-  mtry <- floor(sqrt(ncol(train_data)))
-  print("Value of mtry:")
-  print(mtry)
+  # mtry <- floor(sqrt(ncol(train_data)))
   
   # Passing parameter into tunegrid
   grid <- expand.grid(.mtry=mtry)
@@ -132,35 +114,19 @@ train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
                          method = "rf",
                          metric = metric,
                          tuneGrid = grid,
-                         ntree = 100)
+                         ntree = ntree_vals)
   return(trained_model)
 }
 
-# Final Training function for RF using best parameters
-final_rf_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_mtry, final_n_tree) {
-  
-  # defining evaluation metric
-  metric <- "Accuracy"
-  
-  # Passing parameter into tunegrid
-  grid <- expand.grid(.mtry=final_mtry)
-  set.seed(ml_model_seed)
-  trained_model <- train(x= train_data,
-                         y = Labels_train_data,
-                         method = "rf",
-                         metric = metric,
-                         tuneGrid = grid,
-                         ntree = final_n_tree)
-  return(trained_model)
-}
 
 # Train LSVM model 
-train_LSVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
+train_LSVM_model <- function(train_data, Labels_train_data, ml_model_seed, 
+                             c_vals=c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
+                                      2^7, 2^9, 2^11, 2^13, 2^15)) {
   set.seed(ml_model_seed)
   
   # Assigning values to the parameter C
-  grid <- expand.grid(C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
-                            2^7, 2^9, 2^11, 2^13, 2^15))
+  grid <- expand.grid(C = c_vals)
   
   # training LSVM classifier
   trained_model <- train(x= train_data, # Training Data
@@ -171,32 +137,18 @@ train_LSVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
   return(trained_model)
 }
 
-# Final Training function for LSVM using best parameters
-final_LSVM_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_C) {
-  set.seed(ml_model_seed)
-  
-  # Assigning values to the parameter C
-  grid <- expand.grid(C = final_C)
-  
-  # training LSVM classifier
-  trained_model <- train(x= train_data, # Training Data
-                         y = Labels_train_data,  # Class labels of training data
-                         method = "svmLinear", # Train using LSVM
-                         tuneGrid = grid) # Passing training control parameters
-  # Print trained model
-  return(trained_model)
-  
-}
 
 # Train RBF SVM model 
-train_RBF_SVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
+train_RBF_SVM_model <- function(train_data, Labels_train_data, ml_model_seed,
+                                c_vals = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
+                                           2^7, 2^9, 2^11, 2^13, 2^15),
+                                sigma_vals = c(2^-15, 2^-13, 2^-11, 2^-9, 2^-7, 2^-5, 2^-3, 
+                                               2^-1, 1, 2^1, 2^3)) {
   set.seed(ml_model_seed)
   
   # Assigning values to the parameter sigma and C
-  gridRBF <- expand.grid(sigma = c(2^-15, 2^-13, 2^-11, 2^-9, 2^-7, 2^-5, 2^-3, 
-                                   2^-1, 1, 2^1, 2^3),
-                         C = c(2^-5, 2^-3, 2^-1, 1, 2^1, 2^3, 2^5,
-                               2^7, 2^9, 2^11, 2^13, 2^15))
+  gridRBF <- expand.grid(sigma = sigma_vals,
+                         C = c_vals)
   
   # training LSVM classifier
   trained_model <- train(x= train_data, # Training Data
@@ -205,56 +157,19 @@ train_RBF_SVM_model <- function(train_data, Labels_train_data, ml_model_seed) {
                          tuneGrid = gridRBF) # Passing training control parameters
   # Print trained model
   return(trained_model)
-}
-
-# Final Training function for RBF SVM using best parameters
-final_RBF_SVM_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_C, final_sigma) {
-  set.seed(ml_model_seed)
-  
-  # Assigning values to the parameter C
-  gridRBF <- expand.grid(sigma = final_sigma,
-                         C = final_C)
-  
-  # training RBF SVM classifier
-  trained_model <- train(x= train_data, # Training Data
-                         y = Labels_train_data,  # Class labels of training data
-                         method = "svmRadial", # Train using RBF SVM
-                         tuneGrid = gridRBF) # Passing training control parameters
-  # Print trained model
-  return(trained_model)
-  
 }
 
 
 # Train XGBoost model 
-train_XGBoost_model <- function(train_data, Labels_train_data, ml_model_seed) {
+train_XGBoost_model <- function(train_data, Labels_train_data, ml_model_seed, max_depth_vals = 6, eta_vals = 0.3) {
   set.seed(ml_model_seed)
   Labels_train_data <- recode(Labels_train_data,'RVI'=1, 'Not RVI'=0)
   
   # training procedure
   trained_model <- xgboost(data = train_data, 
                            label = Labels_train_data, 
-                           max.depth = 6, 
-                           eta = 0.3, 
-                           nrounds = 100, 
-                           eval_metric = "error",
-                           objective = "binary:logistic",
-                           verbose = 1)
-  
-  # Print trained model
-  return(trained_model)
-}
-
-
-final_XGBoost_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_max_depth, final_eta) {
-  set.seed(ml_model_seed)
-  Labels_train_data <- recode(Labels_train_data,'RVI'=1, 'Not RVI'=0)
-  
-  # training procedure
-  trained_model <- xgboost(data = train_data, 
-                           label = Labels_train_data, 
-                           max.depth = final_max_depth, 
-                           eta = final_eta, 
+                           max.depth = max_depth_vals, 
+                           eta = eta_vals, 
                            nrounds = 100, 
                            eval_metric = "error",
                            objective = "binary:logistic",
@@ -279,16 +194,16 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
   # Open a connection for writing
   con <- file(filename, "w")
   print(paste0("Writing results to ", output_path))
-
+  
   if(length(levels(predictions)) == 1 && length(levels(actual_labels)) == 1) {
     # Calculate accuracy for a single class
     accuracy <- sum(predictions == actual_labels) / length(actual_labels)
     write("Only one class present in both predictions and actual labels. Calculated accuracy for single class.", con)
-    write("Accuracy:", con)
-    write(accuracy, con)
+    write(accuracy*100, con)
+    write("%", con)
     
-    print("Only one class present in both predictions and actual labels.")
-    print(paste0("Calculated accuracy for single class: ", accuracy))
+    print("Only one class present in both predictions and actual labels for this holdout testset.")
+    print(paste0("Calculated accuracy for single class: ", accuracy*100,"%"))
   } else {
     # Ensure both have the same levels
     levels_union <- union(levels(predictions), levels(actual_labels))
@@ -327,7 +242,7 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 main_function <- function() {
   # Read datasets
   #dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
-  dataset_names <- c("Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv") ## MM NOTE first two not in GitHub
+  dataset_names <- c("Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv") 
   for(dataset_name in dataset_names) {
     Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
     
@@ -335,174 +250,175 @@ main_function <- function() {
     splits <- split_data(Gene_Exp_Data, data_partition_seed)
     
     # Model building using training data
-    print("Starting KNN learning using training data")
-
+    print("########### Starting KNN learning using training data ###########")
+    
     trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
                                          as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+    
     # Print KNN training results
     print("KNN training results:")
     print(trained_knn_model)
-
+    
     # Performing validation and hyper parameter selection using validation data
     validation_knn_model <- train_knn_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                             as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
-
+    
+    
     # Print KNN validation results
     #print(paste0("KNN validation results: ", validation_knn_model))
     cat("\n")
-    print("Starting validation process:")
+    print("########### Starting validation process ###########")
     cat("\n")
     print("KNN validation results:")
     print(validation_knn_model)
-
+    
     # Selecting final model parameters
     final_k <- validation_knn_model$finalModel$tuneValue[1]
-
+    
     # Print final parameter values
     print(paste0("Final value of k: ", final_k))
-
-    ## MM NOTE: Please note that this is the output I get from running the code to here (inconsistent values of k):
-    ##  Accuracy was used to select the optimal model using the largest value.
-    ##  The final value used for the model was k = 6.
-    ##  [1] "Final value of k: 1"
-
+    
     # Final model building using KNN
     # MM NOTE because of my rewrite of train_knn_model(), final_knn_training_function() is no longer needed
     final_knn_trained_model <- train_knn_model(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                         as.factor(splits$full_train_data$True_Class_Label),
-                                                         ml_model_seed, final_k)
-
-
+                                               as.factor(splits$full_train_data$True_Class_Label),
+                                               ml_model_seed, final_k)
+    
+    
     # Test KNN
     cat("\n")
-    print("Starting prediction for holdout testset:")
+    print("########### Starting prediction for holdout testset ###########")
     cat("\n")
     knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+    
     # Write results to a text file
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
-
-    return() # MM NOTE TEMPORARY LINE TO STOP EARLY -- PLEASE DELETE
-
+    
     # Code for RF model building, validation and evaluation
     # Model building using training data
-    print("Starting RF learning using training data")
+    print("########### Starting RF learning using training data ###########")
     trained_rf_model <- train_rf_model(as.matrix(splits$train_data[,-c(1:6)]),
                                        as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+    
     # Print RF training results
     print("RF training results:")
     print(trained_rf_model)
-
+    
     # Performing validation and hyper parameter selection using validation data
     validation_rf_model <- train_rf_model(as.matrix(splits$valid_data[,-c(1:6)]),
-                                           as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+                                          as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+    
     # Print RF validation results
-    print("RF validation results:")
+    print("########### RF validation results ###########")
     print(validation_rf_model)
-
+    
     # Selecting final model parameters
     final_mtry <- validation_rf_model$finalModel$mtry
     final_n_tree <- validation_rf_model$finalModel$ntree
-
+    
     # Print final parameter values
     print("Final value of mtry (na) is:")
     print(final_mtry)
     print("Final value of n_tree (nt) is:")
     print(final_n_tree)
-
+    
     
     # Final model building using RF
-    final_rf_trained_model <- final_rf_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                         as.factor(splits$full_train_data$True_Class_Label),
-                                                         ml_model_seed, final_mtry, final_n_tree)
-
+    final_rf_trained_model <- train_rf_model(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                             as.factor(splits$full_train_data$True_Class_Label),
+                                             ml_model_seed, final_mtry, final_n_tree)
+    
     # Test RF model
+    print("########### Starting prediction for holdout testset ###########")
     rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+    
     # Write results to a text file
     write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RF", dataset_name, output_path)
-
+    
+    
     # Code for LSVM model building, validation and evaluation
     # Model building using training data
+    print("###########  Starting Linear SVM learning using training data ########### ")
     trained_LSVM_model <- train_LSVM_model(as.matrix(splits$train_data[,-c(1:6)]),
                                            as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+    
     # Print LSVM training results
     print("LSVM training results:")
     print(trained_LSVM_model)
-
+    
     # Performing validation and hyper parameter selection using validation data
     validation_LSVM_model <- train_LSVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                               as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+    
     # Print LSVM validation results
-    print("LSVM validation results:")
+    print("########### LSVM validation results ########### ")
     print(validation_LSVM_model)
-
+    
     # Selecting final model parameters
     final_C <- validation_LSVM_model$finalModel@param$C
-
-
+    
+    
     # Print final parameter values
     print("Final value of parameter C of LSVM:")
     print(final_C)
-
+    
     # Final model building using LSVM
-    final_LSVM_trained_model <- final_LSVM_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                             as.factor(splits$full_train_data$True_Class_Label),
-                                                             ml_model_seed, final_C)
-
+    final_LSVM_trained_model <- train_LSVM_model(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                 as.factor(splits$full_train_data$True_Class_Label),
+                                                 ml_model_seed, final_C)
+    
     # Test LSVM model
+    print("########### Starting prediction for holdout testset ###########")
     LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+    
     # Write results to a text file
     write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "LSVM", dataset_name, output_path)
-
+    
+    
     # Code for RBF_SVM model building, validation and evaluation
     # Model building using training data
+    print("###########  Starting RBF SVM learning using training data ########### ")
     trained_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$train_data[,-c(1:6)]),
                                                  as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+    
     # Print RBF_SVM training results
     print("RBF SVM training results:")
     print(trained_RBF_SVM_model)
-
+    
     # Performing validation and hyper parameter selection using validation data
     validation_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                                     as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+    
     # Print RBF_SVM validation results
-    print("RBF SVM validation results:")
+    print("###########  RBF SVM validation results ########### ")
     print(validation_RBF_SVM_model)
-
+    
     # Selecting final model parameters
     final_sigma <- validation_RBF_SVM_model$bestTune$sigma
     final_C = validation_RBF_SVM_model$bestTune$C
-
-
+    
+    
     # Print final parameter values
     print("Final value of parameter C of RBF SVM:")
     print(final_C)
     print("Final value of parameter sigma of RBF SVM:")
     print(final_sigma)
-
+    
     # Final model building using SVM
-    final_RBF_SVM_trained_model <- final_RBF_SVM_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                                   as.factor(splits$full_train_data$True_Class_Label),
-                                                                   ml_model_seed, final_C, final_sigma)
-
+    final_RBF_SVM_trained_model <- train_RBF_SVM_model(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                       as.factor(splits$full_train_data$True_Class_Label),
+                                                       ml_model_seed, final_C, final_sigma)
+    
     # Test RBF_SVM model
+    print("########### Starting prediction for holdout testset ###########")
     SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+    
     # Write results to a text file
     write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RBF_SVM", dataset_name, output_path)
-
+    
     # Code for XGBoost model building, validation and evaluation
     # Model building using training data
+    print("###########  Starting XGBoost learning using training data ########### ")
     trained_XGBoost_model <- train_XGBoost_model(as.matrix(splits$train_data[,-c(1:6)]),
                                                  as.factor(splits$train_data$True_Class_Label), ml_model_seed)
     
@@ -521,7 +437,7 @@ main_function <- function() {
                                                     as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
     
     # Print XGBoost validation results
-    print("XGBoost validation results:")
+    print("########### XGBoost validation results ###########")
     print(validation_XGBoost_model)
     
     # Selecting final model parameters
@@ -540,14 +456,15 @@ main_function <- function() {
     print(final_max_depth)
     print("Final value of parameter eta of XGBoost:")
     print(final_eta)
-
+    
     
     # Final model building using XGBoost
-    final_XGBoost_trained_model <- final_XGBoost_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                                   as.factor(splits$full_train_data$True_Class_Label),
-                                                                   ml_model_seed, final_max_depth, final_eta)
+    final_XGBoost_trained_model <- train_XGBoost_model(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                                       as.factor(splits$full_train_data$True_Class_Label),
+                                                       ml_model_seed, final_max_depth, final_eta)
     
     # Test XGBoost model
+    print("########### Starting prediction for holdout testset ###########")
     XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     
     for (i in 1:length(XGBoost_predictions)) {
