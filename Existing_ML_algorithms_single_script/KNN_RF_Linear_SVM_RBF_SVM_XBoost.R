@@ -103,9 +103,7 @@ train_rf_model <- function(train_data, Labels_train_data, ml_model_seed, mtry = 
   metric <- "Accuracy"
   # ntree: parameter that allows number of trees to grow
   # The mtry parameter setting: Number of variables selected as candidates at each split.
-  # Square root of number of features
-  # mtry <- floor(sqrt(ncol(train_data)))
-  
+
   # Passing parameter into tunegrid
   grid <- expand.grid(.mtry=mtry)
   set.seed(ml_model_seed)
