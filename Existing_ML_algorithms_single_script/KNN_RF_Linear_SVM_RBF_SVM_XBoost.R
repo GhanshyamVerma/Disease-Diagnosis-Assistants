@@ -197,11 +197,10 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
     # Calculate accuracy for a single class
     accuracy <- sum(predictions == actual_labels) / length(actual_labels)
     write("Only one class present in both predictions and actual labels. Calculated accuracy for single class.", con)
-    write(accuracy*100, con)
-    write("%", con)
+    write(print(paste0("Accuracy: ", accuracy*100,"%")), con)
     
-    print("Only one class present in both predictions and actual labels for this holdout testset.")
-    print(paste0("Calculated accuracy for single class: ", accuracy*100,"%"))
+    print("Only one class present in both predictions and actual labels.")
+    print(paste0("Calculated accuracy for single class. Accuracy: ", accuracy*100,"%"))
   } else {
     # Ensure both have the same levels
     levels_union <- union(levels(predictions), levels(actual_labels))
