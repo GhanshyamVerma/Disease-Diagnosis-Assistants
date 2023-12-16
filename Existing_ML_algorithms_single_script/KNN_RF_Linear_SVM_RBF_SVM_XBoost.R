@@ -29,11 +29,11 @@ ml_model_seed <- 1234
 
 
 # Define an input path
-input_path <- "./Datasets/"
+input_path <- "./Datasets/" 
 
 
 # Define an output path
-output_path <- "./All_ML_Models_Results/" 
+output_path <- "./All_ML_Models_Results/"
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
@@ -43,7 +43,7 @@ read_gene_expression_data <- function(filename,input_path) {
 }
 
 # Split data into train, validation, and test
-split_data <- function(Gene_Exp_Data, data_partition_seed) {
+split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
   total_data <- Gene_Exp_Data
   Data_target <- total_data %>% filter(Time > 0)
   
@@ -78,7 +78,25 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
   # Display the data
   g_test_data[c(1:6),c(1:7)] # show first 6 rows
   
-  return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data))
+  # Extract dataset name only by removing .csv from the dataset file name
+  dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+  
+  # Partitioning hold_out_test data further into Testset 1a, Testset 1b or  Testset 2a, Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+  if(dataset_name == "Gene_Expression_Dataset_1_GSE73072" | dataset_name == "Gene_Expression_Dataset_2_GSE68310") {
+    set.seed(data_partition_seed)
+    # Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
+    index_test1 <- createDataPartition(y = hold_out_test$True_Class_Label,
+                                       p = 0.50, list = FALSE)
+    hold_out_test_a <- hold_out_test[index_test1, ]
+    hold_out_test_b <- hold_out_test[-index_test1, ]
+    
+    
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, hold_out_test_a = hold_out_test_a, hold_out_test_b = hold_out_test_b))
+    
+  } else {
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data))
+  }
+  
 }
 
 # Train KNN model
@@ -103,7 +121,9 @@ train_rf_model <- function(train_data, Labels_train_data, ml_model_seed, mtry = 
   metric <- "Accuracy"
   # ntree: parameter that allows number of trees to grow
   # The mtry parameter setting: Number of variables selected as candidates at each split.
-
+  # Square root of number of features
+  # mtry <- floor(sqrt(ncol(train_data)))
+  
   # Passing parameter into tunegrid
   grid <- expand.grid(.mtry=mtry)
   set.seed(ml_model_seed)
@@ -238,13 +258,13 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 # Main function
 main_function <- function() {
   # Read datasets
-  #dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
-  dataset_names <- c("Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv") 
+  dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
+  #dataset_names <- c("Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv") 
   for(dataset_name in dataset_names) {
     Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
     
     # Split data
-    splits <- split_data(Gene_Exp_Data, data_partition_seed)
+    splits <- split_data(Gene_Exp_Data, data_partition_seed, dataset_name)
     
     # Model building using training data
     print("########### Starting KNN learning using training data ###########")
@@ -288,8 +308,34 @@ main_function <- function() {
     cat("\n")
     knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     
-    # Write results to a text file
+    # Write results to a text file for full holdout testset 
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
+    
+    # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test KNN
+      knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
+      
+      # Write results to a text file for holdout_testset_a 
+      write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "KNN", result_filename, output_path)
+    }
+    
+    # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test KNN
+      knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+      
+      # Write results to a text file for holdout_testset_b
+      write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "KNN", result_filename, output_path)
+    }
     
     # Code for RF model building, validation and evaluation
     # Model building using training data
@@ -329,8 +375,34 @@ main_function <- function() {
     print("########### Starting prediction for holdout testset ###########")
     rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     
-    # Write results to a text file
+    # Write results to a text file for full holdout testset
     write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RF", dataset_name, output_path)
+    
+    # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test RF
+      rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
+      
+      # Write results to a text file for holdout_testset_a 
+      write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "RF", result_filename, output_path)
+    }
+    
+    # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test RF
+      rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+      
+      # Write results to a text file for holdout_testset_b
+      write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "RF", result_filename, output_path)
+    }
     
     
     # Code for LSVM model building, validation and evaluation
@@ -368,9 +440,34 @@ main_function <- function() {
     print("########### Starting prediction for holdout testset ###########")
     LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     
-    # Write results to a text file
+    # Write results to a text file for full holdout testset
     write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "LSVM", dataset_name, output_path)
     
+    # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test LSVM
+      LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
+      
+      # Write results to a text file for holdout_testset_a 
+      write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "LSVM", result_filename, output_path)
+    }
+    
+    # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test LSVM
+      LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+      
+      # Write results to a text file for holdout_testset_b
+      write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "LSVM", result_filename, output_path)
+    }
     
     # Code for RBF_SVM model building, validation and evaluation
     # Model building using training data
@@ -410,8 +507,34 @@ main_function <- function() {
     print("########### Starting prediction for holdout testset ###########")
     SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
     
-    # Write results to a text file
+    # Write results to a text file for full holdout testset
     write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RBF_SVM", dataset_name, output_path)
+    
+    # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test RBF_SVM
+      SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
+      
+      # Write results to a text file for holdout_testset_a 
+      write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "RBF_SVM", result_filename, output_path)
+    }
+    
+    # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      # Test RBF_SVM
+      SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+      
+      # Write results to a text file for holdout_testset_b
+      write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "RBF_SVM", result_filename, output_path)
+    }
     
     # Code for XGBoost model building, validation and evaluation
     # Model building using training data
@@ -473,8 +596,54 @@ main_function <- function() {
       
     }
     
-    # Write results to a text file
+    # Write results to a text file for full holdout testset
     write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test$True_Class_Label), "XGBoost", dataset_name, output_path)
+    
+    # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      
+      # Test XGBoost model
+      XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
+      
+      for (i in 1:length(XGBoost_predictions)) {
+        if(XGBoost_predictions[i] < 0.5){
+          XGBoost_predictions[i] <- 'Not RVI'
+        }else{
+          XGBoost_predictions[i] <- 'RVI'
+        }
+      }
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
+      
+      # Write results to a text file
+      write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test_a$True_Class_Label), "XGBoost", result_filename, output_path)
+      
+    }
+    
+    # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      
+      # Test XGBoost model
+      XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+      
+      for (i in 1:length(XGBoost_predictions)) {
+        if(XGBoost_predictions[i] < 0.5){
+          XGBoost_predictions[i] <- 'Not RVI'
+        }else{
+          XGBoost_predictions[i] <- 'RVI'
+        }
+      }
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the filename
+      result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+      
+      # Write results to a text file
+      write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test_b$True_Class_Label), "XGBoost", result_filename, output_path)
+      
+    }
     
   }
 }
