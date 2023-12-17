@@ -3,7 +3,7 @@
 
 # Required packages
 required_packages <- c("caret", "dplyr", "e1071", "ggplot2", "class", 
-                       "randomForest", "pROC")
+                       "randomForest", "pROC", "kernlab", "xgboost")
 
 # Check if required r libraries are already installed or not
 new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
@@ -29,19 +29,21 @@ ml_model_seed <- 1234
 
 
 # Define an input path
-input_path <- "/Datasets/Gene_Expression/"
+input_path <- "./Datasets/" 
 
 # Define an output path
-output_path <- "/All_ML_Models_Results/"
+output_path <- "./All_ML_Models_Results/" 
 
 # Read Gene Expression Datasets
 read_gene_expression_data <- function(filename,input_path) {
   path_filename <- paste0(input_path, filename)
+  print(paste0("Reading CSV file called ", path_filename))
   return(read.csv(file = path_filename, header = TRUE, sep=",", check.names = FALSE))
 }
 
+
 # Split data into train, validation, and test
-split_data <- function(Gene_Exp_Data, data_partition_seed) {
+split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
   total_data <- Gene_Exp_Data
   Data_target <- total_data %>% filter(Time > 0)
   
@@ -73,24 +75,42 @@ split_data <- function(Gene_Exp_Data, data_partition_seed) {
   g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
   g_full_train_data <- total_data %>% filter(Super_Subject_ID %in% full_train_data$Super_Subject_ID)
   
-  # Display the data
-  g_test_data[c(1:6),c(1:7)] # show first 6 rows
   
-  return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data))
+  # Extract dataset name only by removing .csv from the dataset file name
+  dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+  
+  # Partitioning hold_out_test data further into Testset 1a, Testset 1b or  Testset 2a, Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+  if(dataset_name == "Gene_Expression_Dataset_1_GSE73072" | dataset_name == "Gene_Expression_Dataset_2_GSE68310") {
+    set.seed(data_partition_seed)
+    # Dividing test data set further into holdout test set (25%) and validation set (25%) using createDataPartition function of caret package
+    index_test1 <- createDataPartition(y = hold_out_test$True_Class_Label,
+                                       p = 0.50, list = FALSE)
+    hold_out_test_a <- hold_out_test[index_test1, ]
+    hold_out_test_b <- hold_out_test[-index_test1, ]
+    
+    # Testset all time points
+    holdout_test_a <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_a$Super_Subject_ID)
+    holdout_test_b <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_b$Super_Subject_ID)
+    
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, hold_out_test_a = hold_out_test_a, hold_out_test_b = hold_out_test_b, holdout_test = g_test_data, holdout_test_a = holdout_test_a, holdout_test_b = holdout_test_b))
+    
+  } else {
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, holdout_test = g_test_data))
+  }
+  
 }
 
 
+
 # Train Random Forest model 
-train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
+train_rf_model <- function(train_data, Labels_train_data, ml_model_seed, mtry = floor(sqrt(ncol(train_data))), ntree_vals = 100) {
   
   # defining evaluation metric
   metric <- "Accuracy"
   # ntree: parameter that allows number of trees to grow
   # The mtry parameter setting: Number of variables selected as candidates at each split.
   # Square root of number of features
-  mtry <- floor(sqrt(ncol(train_data)))
-  print("Value of mtry:")
-  print(mtry)
+  # mtry <- floor(sqrt(ncol(train_data)))
   
   # Passing parameter into tunegrid
   grid <- expand.grid(.mtry=mtry)
@@ -100,25 +120,7 @@ train_rf_model <- function(train_data, Labels_train_data, ml_model_seed) {
                          method = "rf",
                          metric = metric,
                          tuneGrid = grid,
-                         ntree = 100)
-  return(trained_model)
-}
-
-# Final Training function for RF using best parameters
-final_rf_training_function <- function(train_data, Labels_train_data, ml_model_seed, final_mtry, final_n_tree) {
-  
-  # defining evaluation metric
-  metric <- "Accuracy"
-  
-  # Passing parameter into tunegrid
-  grid <- expand.grid(.mtry=final_mtry)
-  set.seed(ml_model_seed)
-  trained_model <- train(x= train_data,
-                         y = Labels_train_data,
-                         method = "rf",
-                         metric = metric,
-                         tuneGrid = grid,
-                         ntree = final_n_tree)
+                         ntree = ntree_vals)
   return(trained_model)
 }
 
@@ -136,17 +138,16 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
   
   # Open a connection for writing
   con <- file(filename, "w")
+  print(paste0("Writing results to ", output_path))
   
   if(length(levels(predictions)) == 1 && length(levels(actual_labels)) == 1) {
     # Calculate accuracy for a single class
     accuracy <- sum(predictions == actual_labels) / length(actual_labels)
     write("Only one class present in both predictions and actual labels. Calculated accuracy for single class.", con)
-    write("Accuracy:", con)
-    write(accuracy, con)
+    write(print(paste0("Accuracy: ", accuracy*100,"%")), con)
     
     print("Only one class present in both predictions and actual labels.")
-    print(paste0("Calculated accuracy for single class: ", accuracy))
-    print(accuracy)
+    print(paste0("Calculated accuracy for single class. Accuracy: ", accuracy*100,"%"))
   } else {
     # Ensure both have the same levels
     levels_union <- union(levels(predictions), levels(actual_labels))
@@ -180,59 +181,85 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 }
 
 
+##################################################################################################
+####################################### Main Program  ############################################
+##################################################################################################
 
-# Main function
-main_function <- function() {
-  # Read datasets
-  dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
-  for(dataset_name in dataset_names) {
-    Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
+# Read datasets
+dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
+
+for(dataset_name in dataset_names) {
+  Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
+  
+  # Split data
+  splits <- split_data(Gene_Exp_Data, data_partition_seed, dataset_name)
+  
+  # Code for RF model building, validation and evaluation
+  # Model building using training data
+  print("########### Starting RF learning using training data ###########")
+  trained_rf_model <- train_rf_model(as.matrix(splits$train_data[,-c(1:6)]),
+                                     as.factor(splits$train_data$True_Class_Label), ml_model_seed)
+  
+  # Print RF training results
+  print("RF training results:")
+  print(trained_rf_model)
+  
+  # Performing validation and hyper parameter selection using validation data
+  validation_rf_model <- train_rf_model(as.matrix(splits$valid_data[,-c(1:6)]),
+                                        as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
+  
+  # Print RF validation results
+  print("########### RF validation results ###########")
+  print(validation_rf_model)
+  
+  # Selecting final model parameters
+  final_mtry <- validation_rf_model$finalModel$mtry
+  final_n_tree <- validation_rf_model$finalModel$ntree
+  
+  # Print final parameter values
+  print("Final value of mtry (na) is:")
+  print(final_mtry)
+  print("Final value of n_tree (nt) is:")
+  print(final_n_tree)
+  
+  
+  # Final model building using RF
+  final_rf_trained_model <- train_rf_model(as.matrix(splits$full_train_data[,-c(1:6)]),
+                                           as.factor(splits$full_train_data$True_Class_Label),
+                                           ml_model_seed, final_mtry, final_n_tree)
+  
+  # Test RF model
+  print("########### Starting prediction for holdout testset ###########")
+  rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+  
+  # Write results to a text file for full holdout testset
+  write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RF", dataset_name, output_path)
+  
+  # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+  if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+    # Test RF
+    rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
     
-    # Split data
-    splits <- split_data(Gene_Exp_Data, data_partition_seed)
+    data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+    # Create the filename
+    result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
     
-
-    # Code for RF model building, validation and evaluation
-    # Model building using training data
-    trained_rf_model <- train_rf_model(as.matrix(splits$train_data[,-c(1:6)]),
-                                       as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
-    # Print RF training results
-    print("RF training results:")
-    print(trained_rf_model)
-
-    # Performing validation and hyper parameter selection using validation data
-    validation_rf_model <- train_rf_model(as.matrix(splits$valid_data[,-c(1:6)]),
-                                           as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
-    # Print RF validation results
-    print("RF validation results:")
-    print(validation_rf_model)
-
-    # Selecting final model parameters
-    final_mtry <- validation_rf_model$finalModel$mtry
-    final_n_tree <- validation_rf_model$finalModel$ntree
-
-    # Print final parameter values
-    print("Final value of mtry (na) is:")
-    print(final_mtry)
-    print("Final value of n_tree (nt) is:")
-    print(final_n_tree)
-
-    
-    # Final model building using RF
-    final_rf_trained_model <- final_rf_training_function(as.matrix(splits$full_train_data[,-c(1:6)]),
-                                                         as.factor(splits$full_train_data$True_Class_Label),
-                                                         ml_model_seed, final_mtry, final_n_tree)
-
-    # Test RF model
-    rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
-    # Write results to a text file
-    write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RF", dataset_name, output_path)
-
+    # Write results to a text file for holdout_testset_a
+    write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "RF", result_filename, output_path)
   }
+  
+  # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+  if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+    # Test RF
+    rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+    
+    data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+    # Create the filename
+    result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+    
+    # Write results to a text file for holdout_testset_b
+    write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "RF", result_filename, output_path)
+  }
+  
 }
-
-main_function()
 

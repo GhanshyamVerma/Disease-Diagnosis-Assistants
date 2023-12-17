@@ -717,7 +717,6 @@ for(dataset_name in dataset_names) {
   print(paste0("Final value of k: ", final_k))
 
   # Final model building using KNN
-  # MM NOTE because of my rewrite of train_knn_model(), final_knn_training_function() is no longer needed
   final_knn_trained_model <- train_knn_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                              as.factor(splits$full_train_data$True_Class_Label),
                                              ml_model_seed, final_k)
