@@ -651,10 +651,10 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
     
     # Grid search: alternatively to perform grid search, enter appropriate start, end, and step size for P and Q
     P_start <- 25
-    P_end <- 50
+    P_end <- 50      # replace P_end <- 50 with 300 to reproduce the results shown in the paper. Keep it low for quick test.  
     P_step <- 25
     Q_start <- 25
-    Q_end <- 50
+    Q_end <- 50      # replace Q_end <- 50 with 300 to reproduce the results shown in the paper. Keep it low for quick test.
     Q_step <- 25
     
   }
