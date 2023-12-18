@@ -31,6 +31,7 @@ ml_model_seed <- 1234
 # Define an input path
 input_path <- "./Datasets/" 
 
+
 # Define an output path
 output_path <- "./All_ML_Models_Results/" 
 
@@ -238,10 +239,10 @@ SCADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
     
     # Grid search: alternatively to perform grid search, enter appropriate start, end, and step size for P and Q
     P_start <- 25
-    P_end <- 300
+    P_end <- 50      # replace P_end <- 50 with 300 to reproduce the results shown in the paper. Keep it low for quick test.  
     P_step <- 25
     Q_start <- 25
-    Q_end <- 300
+    Q_end <- 50      # replace Q_end <- 50 with 300 to reproduce the results shown in the paper. Keep it low for quick test.
     Q_step <- 25
     
   }
@@ -617,6 +618,428 @@ SCADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
 }
 
 
+# Train LOADDx model 
+LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, dataset_name, KB_name, output_path, model_name, which_set, P_start = 25 , Q_start = 25) {
+  set.seed(ml_model_seed)
+  
+  # enter the number of top "m" most likely diseases you want to see with computed probabilities for each patient 
+  m = 5
+  
+  # enter values of MDEGs and LDEGs you want to consider or enter a range
+  # if you don't want to perform grid search and want to perform the experiment on single P and Q value 
+  # then assign same value to variable P_start and P_end and assign 0 value to P_step = 0. Similarly same value (value of Q) to variable Q_start and Q_end and value 0 to Q_step as shown below.
+  # P_start <- 25
+  # P_end <- 25
+  # P_step <- 0
+  # Q_start <- 25
+  # Q_end <- 25
+  # Q_step <- 0
+  
+  
+  if(which_set == "Holdout_test"){
+    ###################################    NO Grid search   ##############################################################
+    
+    P_start <- P_start
+    P_end <- P_start
+    P_step <- 0
+    Q_start <- Q_start
+    Q_end <- Q_start
+    Q_step <- 0
+    
+  }else{
+    ###################################    Grid search   ##############################################################
+    
+    # Grid search: alternatively to perform grid search, enter appropriate start, end, and step size for P and Q
+    P_start <- 25
+    P_end <- 50
+    P_step <- 25
+    Q_start <- 25
+    Q_end <- 50
+    Q_step <- 25
+    
+  }
+  
+  
+  #######################################################################################################################################
+  
+  print(paste0("##################################################### ",which_set," #############################################################"))
+  
+  #######################################################################################################################################
+  
+  
+  # extract all unique diseases from KB to assign computed disease weight
+  Data_Unique_Disease <- KB[!duplicated(KB[,c('disease_id')]), c('disease_name','disease_id')]
+  
+  # reorder the columns
+  Data_Unique_Disease <- Data_Unique_Disease[ , c('disease_id','disease_name')]
+  
+  # add a new column named Disease_Weight
+  Data_Unique_Disease <- Data_Unique_Disease %>% mutate(Disease_Weight = 0)
+  
+  # temporary variable of Data_Unique_Disease
+  Data_Unique_Disease_initial_weights <- Data_Unique_Disease
+  
+  # gene expression values start index in gene expression data
+  s_index <- 7
+  
+  # computing length for grid search
+  PS <- length(seq(P_start,P_end,P_step))
+  QS <- length(seq(Q_start,Q_end,Q_step))
+  
+  # creating data frame to compute and store accuracy at different values of P and Q and, and different value of top n diseases
+  Accuracy_matrix <- data.frame("P" = 1:(PS*QS), "Q" = 1:(PS*QS), "Acc_Top_1_Dis" = 1:(PS*QS), "Acc_Top_2_Dis" = 1:(PS*QS), "Acc_Top_3_Dis" = 1:(PS*QS), "Acc_Top_4_Dis" = 1:(PS*QS), "Acc_Top_5_Dis" = 1:(PS*QS), "Acc_Top_10_Dis" = 1:(PS*QS))
+  
+  Accuracy_matrix <- Accuracy_matrix %>% mutate(Avg_Acc = 0)
+  Accuracy_matrix <- Accuracy_matrix %>% mutate(Time = 0)
+  # initializing the incrementer for Accuracy_matrix
+  Acc_index <- 1
+  
+  # Extract dataset name only by removing .csv from the dataset file name
+  dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+  
+  # Extract KB name only by removing .csv from the KB file name
+  KB_name <- substr(KB_name, 1, nchar(KB_name) - 4)
+  
+  # Start the clock!
+  start_loop_time <- proc.time()
+  
+  #### Code for assigning weights to the diseases in KB based on changes observed in genes
+  
+  for(p in seq(P_start,P_end,P_step)){  # loop of p is for top genes / P MDEGs
+    
+    for(q in seq(Q_start,Q_end,Q_step)){  # loop of q is for bottom genes / Q LDEGs
+      
+      # Start the clock!
+      start_p_time <- proc.time()
+      
+      # total number of subjects
+      s <- dim(train_data)[1]/2
+      
+      # making super_subject_id serial wise
+      train_data$Super_Subject_ID <- rep(1:s, each = 2)
+      
+      # creating data frame to store values of predicted class labels
+      
+      predicted_info <- train_data[ , c(1:s_index-1)]
+      predicted_info <- predicted_info %>% mutate(predicted_label_top_1 = 1:(2*s))
+      predicted_info <- predicted_info %>% mutate(predicted_label_top_2 = 1:(2*s))
+      predicted_info <- predicted_info %>% mutate(predicted_label_top_3 = 1:(2*s))
+      predicted_info <- predicted_info %>% mutate(predicted_label_top_4 = 1:(2*s))
+      predicted_info <- predicted_info %>% mutate(predicted_label_top_5 = 1:(2*s))
+      predicted_info <- predicted_info %>% mutate(predicted_label_top_10 = 1:(2*s))
+      
+      Gene_Data_All_ti_prediction <- train_data[!train_data$Time == 0, c(1:(s_index-1))]
+      Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_label_top_1 = 1:s)
+      Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_label_top_2 = 1:s)
+      Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_label_top_3 = 1:s)
+      Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_label_top_4 = 1:s)
+      Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_label_top_5 = 1:s)
+      Gene_Data_All_ti_prediction <- Gene_Data_All_ti_prediction %>% mutate(predicted_label_top_10 = 1:s)
+      
+      All_Sub_temp_prediction <- data.frame("Top_1"=1:s, "Top_2"=1:s,"Top_3"=1:s, "Top_4"=1:s,"Top_5"=1:s, "Top_10"=1:s)
+      
+      # loop of l for number of subjects
+      
+      for(l in 1:s){ 
+        
+        # extracting data of lth subject 
+        # making super_subject_id serial wise
+        # train_data$Super_Subject_ID <- rep(1:s, each = 2)
+        Gene_expression_data_sub_l <- train_data %>% filter(Super_Subject_ID == l)
+        Gene_expression_data_sub_l <- Gene_expression_data_sub_l[ , -c(1:(s_index-1))]
+        
+        cat("\n")
+        print(paste0("########################### ",which_set," code: New subject's computation start from here#############################"))
+        
+        cat("\n")
+        print(paste0(which_set," Data: Subject/Patient id is:"))
+        print(l)
+        cat("\n")
+        
+        # for each subject, again initialize the Data_Unique_Disease variable dataframe
+        Data_Unique_Disease <- Data_Unique_Disease_initial_weights
+        
+        # compute changes in gene expression values (Target sample (TD) - Reference sample (T1)
+        Gene_Transition_Matrix <- Gene_expression_data_sub_l[2, ] - Gene_expression_data_sub_l[1, ]
+        
+        # extracting top P MDEGs
+        Gene_Transition_Matrix_top_p_Genes <- Gene_Transition_Matrix[ , order(-abs(Gene_Transition_Matrix[ , ]))]
+        Gene_Transition_Matrix_top_p_Genes <- Gene_Transition_Matrix_top_p_Genes[ , c(1:p)]
+        
+        print("Top 5 Most Differencially Expressed Genes (MDEGs):")
+        print(Gene_Transition_Matrix_top_p_Genes[ , 1:5])
+        cat("\n")
+        
+        for(j in 1:p){ # loop of j for number of genes
+          
+          # extract all diseases' ids from KB that are associated with top P genes/ MDEGs of the subject
+          Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_top_p_Genes)[j], "disease_id" ]
+          
+          if(length(Disease_IDs) == 0){
+          }else{
+            for(k in 1:length(Disease_IDs)){ # loop for every disease id
+              
+              # computing the weight/score for each disease for lth subject
+              Data_Unique_Disease[Data_Unique_Disease$disease_id ==  Disease_IDs[k], "Disease_Weight"] <-   Data_Unique_Disease[Data_Unique_Disease$disease_id ==  Disease_IDs[k], "Disease_Weight"] + 1
+            }  # end for loop k
+          } # end else
+          
+          
+        } # end for loop j
+        
+        #### Code for down-weighting the diseases based on the associated Q LDEGs to them
+        Odds_bottom_gene <- Data_Unique_Disease_initial_weights
+        
+        #### Code for down-weighting the diseases based on the associated Q LDEGs to them
+        
+        # extracting Q LDEGs
+        Gene_Transition_Matrix_bottom_q_Genes <- Gene_Transition_Matrix[ , order(abs(Gene_Transition_Matrix[ , ]))]
+        Gene_Transition_Matrix_bottom_q_Genes <- Gene_Transition_Matrix_bottom_q_Genes[ , c(1:q)]
+        
+        print("5 Least Differencially Expressed Genes (LDEGs):")
+        print(Gene_Transition_Matrix_bottom_q_Genes[ , 1:5])
+        cat("\n")
+        
+        for(j in 1:q){ # loop of j for number of bottom genes
+          
+          # extract all diseases' ids from KB that are associated with bottom Q genes / LDEGs of the subject
+          Disease_IDs <- KB[KB$gene_symbol == names(Gene_Transition_Matrix_bottom_q_Genes)[j], "disease_id" ]
+          
+          if(length(Disease_IDs) == 0){
+          }else{
+            for(k in 1:length(Disease_IDs)){ # loop for every disease id
+              
+              # down-weighting the diseases based on the associated Q LDEGs to them
+              Odds_bottom_gene[Odds_bottom_gene$disease_id ==  Disease_IDs[k], "Disease_Weight"] <-  Odds_bottom_gene[Odds_bottom_gene$disease_id ==  Disease_IDs[k], "Disease_Weight"] + 1
+              
+            }  # end for loop k
+          } # end else
+          
+          
+        } # end for loop j
+        
+        # calculate log odds for top p genes (MDEGs) and bottom q genes (LDEGs)
+        for(z in 1:dim(Data_Unique_Disease)[1]){ # loop of z for number of disease
+          
+          Data_Unique_Disease$Disease_Weight[z] <- log((Data_Unique_Disease$Disease_Weight[z] + 1)/ (p+1-Data_Unique_Disease$Disease_Weight[z]))
+          
+          Odds_bottom_gene$Disease_Weight[z] <- log((Odds_bottom_gene$Disease_Weight[z] + 1)/ (q+1-Odds_bottom_gene$Disease_Weight[z]))
+          
+          Data_Unique_Disease$Disease_Weight[z] <- Data_Unique_Disease$Disease_Weight[z] -  Odds_bottom_gene$Disease_Weight[z]
+          
+        }
+        
+        
+        # create file name to write data into csv file
+        #file_name <- paste("Disease_Weight_Train_Sub_",l,"_p_",p,"_q_",q,".csv", collapse = "",sep="")
+        
+        # write data into csv file
+        #write.csv(Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ], file = file_name, row.names = FALSE)
+        
+        print("Value of P (number of MDEGs) is :")
+        print(p)
+        cat("\n")
+        
+        print("Value of Q is :")
+        print(q)
+        cat("\n")
+        
+        print("This subject at this time point has following True Class Label:")
+        print(train_data[ train_data$Super_Subject_ID == l , ]$True_Class_Label[2])
+        cat("\n")
+        
+        for(i in 1:6){ # loop for how many top disease you want to look for Acc calc (current loop is for top 1 to 5 and top 10 predicted diseases )
+          
+          if(i<6){
+            Top_Disease_Names <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:i, "disease_name"]
+          }else{
+            Top_Disease_Names <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:10, "disease_name"]
+          }
+          
+          if(any(Top_Disease_Names == "Respiratory Viral Infection") || any(Top_Disease_Names == "Influenza") || any(Top_Disease_Names == "Respiratory Tract Diseases") || any(Top_Disease_Names == "Respiratory Syncytial Virus Infections") || any(Top_Disease_Names == "Respiratory Tract Infections")){
+            predicted_info[predicted_info$Super_Subject_ID == l , (i+s_index-1)][2] <- "RVI"
+            Gene_Data_All_ti_prediction[Gene_Data_All_ti_prediction$Super_Subject_ID == l , (i+s_index-1)][1] <- "RVI"
+            All_Sub_temp_prediction[l,i] <- "RVI"
+          }else{
+            predicted_info[predicted_info$Super_Subject_ID == l , (i+s_index-1)][2] <- "Not RVI"
+            Gene_Data_All_ti_prediction[Gene_Data_All_ti_prediction$Super_Subject_ID == l , (i+s_index-1)][1] <- "Not RVI"
+            All_Sub_temp_prediction[l,i] <- "Not RVI"
+          }
+          
+          if(i<6){
+            print(paste("Predicted label using top ", i, "disease is:"))
+            print(All_Sub_temp_prediction[l,i])
+            cat("\n")
+            
+          }else{
+            print("Predicted label using top 10 disease is:")
+            print(All_Sub_temp_prediction[l,i])
+            cat("\n")
+            
+          }
+          
+        }
+        
+        # creating dataframe to store computed disease probabilites
+        Data_Unique_Disease_with_Probability <- Data_Unique_Disease[order(-Data_Unique_Disease$Disease_Weight), ][1:m, ]
+        
+        # function to compute probability of predicted disease using generalized softmax
+        generalized_softmax <- function(Dis_weight){
+          S_Prob <- Dis_weight
+          e_Dis_weight <- exp(Dis_weight)
+          for(i in 1:length(Dis_weight)){
+            S_Prob[i] <- (exp(Dis_weight[i])/sum(e_Dis_weight))*100
+          }
+          return(S_Prob)
+        }
+        
+        # calling probability function
+        Disease_Prob <- generalized_softmax(Data_Unique_Disease_with_Probability$Disease_Weight)
+        Data_Unique_Disease_with_Probability <- Data_Unique_Disease_with_Probability %>% mutate(Disease_Probability = Disease_Prob)
+        
+        # extracting other entities from the KB for the top predicted disease
+        disease_class_n_others <- KB[1:m, c('disease_type', 'disease_class_name', 'disease_semantic_type','gene_symbol', 'protein_class', 'uniprot_id')]
+        disease_class_n_others <- disease_class_n_others %>% mutate(change_in_gene_expr = 0)
+        
+        for(d in 1:m){
+          disease_class_n_others$disease_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_type')][1]
+          disease_class_n_others$disease_class_name[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_class_name')][1] 
+          disease_class_n_others$disease_semantic_type[d] <- KB[KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[d], c('disease_semantic_type')][1] 
+          disease_class_n_others$gene_symbol[d] <- colnames(Gene_Transition_Matrix_top_p_Genes)[d]
+          disease_class_n_others$change_in_gene_expr[d] <- Gene_Transition_Matrix_top_p_Genes[,d]
+          disease_class_n_others$protein_class[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('protein_class')][1] 
+          disease_class_n_others$uniprot_id[d] <- KB[KB$gene_symbol == colnames(Gene_Transition_Matrix_top_p_Genes)[d] & KB$disease_id == Data_Unique_Disease_with_Probability$disease_id[1], c('uniprot_id')][1] 
+          
+        }
+        
+        Data_Unique_Disease_with_Probability <- cbind(Data_Unique_Disease_with_Probability,disease_class_n_others)
+        
+        
+        print("Top 5 most likely diseases predicted for this subject are:")
+        print(Data_Unique_Disease_with_Probability)
+        cat("\n")
+        
+        cat("\n")
+        print("################################## This subject's predictions ends here #####################################")
+        cat("\n")
+      } # end for loop 
+      
+      # Create the file name
+      filename <- paste0(output_path, model_name, "_", dataset_name,"_",KB_name,"_predicted_info_",which_set,"_Total_Sub",l,"_p_",p,"_q_",q,".csv")
+      write.csv(Gene_Data_All_ti_prediction, file = filename, row.names = FALSE)
+      
+      
+      cat("\n")
+      print("Accuracy calculated using all subjects considering different values of top n diseases:")
+      cat("\n")
+      
+      ## computing accuracy using all subjects of test data 
+      # computing accuracy using confusion matrix if both positive and negative subjects are there in the data
+      if(any(Gene_Data_All_ti_prediction$True_Class_Label == "Not RVI")){
+        for(i in 1:6){
+          confusion_mat <- confusionMatrix( as.factor(All_Sub_temp_prediction[,i]), as.factor(Gene_Data_All_ti_prediction$True_Class_Label), positive = "RVI")
+          
+          if(i<6){
+            cat("\n")
+            print(paste("Accuracy using top", i, "disease is:"))
+            print(confusion_mat)
+            cat("\n")
+            
+          }else{
+            cat("\n")
+            print("Accuracy using top 10 diseases is:")
+            print(confusion_mat)
+            cat("\n")
+            
+          }
+          
+          Accuracy_matrix[Acc_index, (2+i)] <- confusion_mat$overall[1]
+        }
+      }else{ #computing accuracy using standard method (hit rate) if only positive subjects are there in the data
+        for(i in 1:6){
+          hit <- 0
+          for(k in 1:dim(All_Sub_temp_prediction)[1]){
+            if(Gene_Data_All_ti_prediction[k,"True_Class_Label"] == All_Sub_temp_prediction[k,i]){
+              hit <- hit + 1
+            }
+          }
+          Acc <- hit/dim(All_Sub_temp_prediction)[1]
+          cat("\n")
+          print(paste("Accuracy using top", i, "disease is:"))
+          print(Acc)
+          if(i<6){
+            cat("\n")
+            print(paste("Accuracy using top", i, "disease is:"))
+            print(Acc)
+            cat("\n")
+            
+          }else{
+            cat("\n")
+            print("Accuracy using top 10 diseases is:")
+            print(Acc)
+            cat("\n")
+            
+          }
+          Accuracy_matrix[Acc_index, (2+i)] <- Acc
+          
+        }
+        
+      }
+      
+      # assign current value of P and Q 
+      Accuracy_matrix$P[Acc_index] <- p
+      Accuracy_matrix$Q[Acc_index] <- q
+      
+      
+      
+      # Stop the clock
+      each_itteration_time <- proc.time() - start_p_time
+      
+      print(each_itteration_time)
+      # adding time to the Accuracy_matrix
+      Accuracy_matrix$Time[Acc_index] <- each_itteration_time[3]
+      
+      # adding average acc to the Accuracy_matrix
+      Accuracy_matrix$Avg_Acc <- rowMeans(Accuracy_matrix[,c(3:8)])
+      
+      cat("\n")
+      print("Accuracy calculated using all subjects on different values of top n diseases and varing P and Q:")
+      cat("\n")
+      print("Accuracy Matrix:")
+      print(Accuracy_matrix[1:Acc_index, ])
+      cat("\n")
+      
+      
+      # incrementer 
+      Acc_index <- Acc_index +1
+      
+      
+      
+      
+      print("################################## Current itteration of the loop for Q ends here ##########################################")
+      cat("\n")
+      
+    } # ending loop q 
+    
+    print("################################## Current itteration of the loop for P ends here ##########################################")
+    cat("\n")
+    
+  } # ending loop p
+  
+  # Stop the clock
+  total_loop_time <- proc.time() - start_loop_time
+  
+  print(total_loop_time)
+  
+  # Create the filename
+  filename <- paste0(output_path, model_name, "_", dataset_name,"_",KB_name,"_Accuracy_Matrix_",which_set,"_Total_Sub",l,"_p_",p,"_q_",q,".csv")
+  write.csv(Accuracy_matrix, file = filename, row.names = FALSE)
+  
+  
+  return(Accuracy_matrix)
+  
+}
+
 
 # Write confusion matrix results to TXT
 write_confusion_to_txt <- function(predictions, actual_labels, model_name, dataset_name, output_path) {
@@ -689,19 +1112,19 @@ for(dataset_name in dataset_names) {
   
   # Model building using training data
   print("########### Starting KNN learning using training data ###########")
-
+  
   trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
                                        as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+  
   # Print KNN training results
   print("KNN training results:")
   print(trained_knn_model)
-
+  
   # Performing validation and hyper parameter selection using validation data
   validation_knn_model <- train_knn_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                           as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
-
+  
+  
   # Print KNN validation results
   #print(paste0("KNN validation results: ", validation_knn_model))
   cat("\n")
@@ -709,322 +1132,322 @@ for(dataset_name in dataset_names) {
   cat("\n")
   print("KNN validation results:")
   print(validation_knn_model)
-
+  
   # Selecting final model parameters
   final_k <- validation_knn_model$finalModel$tuneValue[1]
-
+  
   # Print final parameter values
   print(paste0("Final value of k: ", final_k))
-
+  
   # Final model building using KNN
   final_knn_trained_model <- train_knn_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                              as.factor(splits$full_train_data$True_Class_Label),
                                              ml_model_seed, final_k)
-
-
+  
+  
   # Test KNN
   cat("\n")
   print("########### Starting prediction for holdout testset ###########")
   cat("\n")
   knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+  
   # Write results to a text file for full holdout testset
   write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
-
+  
   # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test KNN
     knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
-
+    
     # Write results to a text file for holdout_testset_a
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "KNN", result_filename, output_path)
   }
-
+  
   # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test KNN
     knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
-
+    
     # Write results to a text file for holdout_testset_b
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "KNN", result_filename, output_path)
   }
-
+  
   # Code for RF model building, validation and evaluation
   # Model building using training data
   print("########### Starting RF learning using training data ###########")
   trained_rf_model <- train_rf_model(as.matrix(splits$train_data[,-c(1:6)]),
                                      as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+  
   # Print RF training results
   print("RF training results:")
   print(trained_rf_model)
-
+  
   # Performing validation and hyper parameter selection using validation data
   validation_rf_model <- train_rf_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                         as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+  
   # Print RF validation results
   print("########### RF validation results ###########")
   print(validation_rf_model)
-
+  
   # Selecting final model parameters
   final_mtry <- validation_rf_model$finalModel$mtry
   final_n_tree <- validation_rf_model$finalModel$ntree
-
+  
   # Print final parameter values
   print("Final value of mtry (na) is:")
   print(final_mtry)
   print("Final value of n_tree (nt) is:")
   print(final_n_tree)
-
-
+  
+  
   # Final model building using RF
   final_rf_trained_model <- train_rf_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                            as.factor(splits$full_train_data$True_Class_Label),
                                            ml_model_seed, final_mtry, final_n_tree)
-
+  
   # Test RF model
   print("########### Starting prediction for holdout testset ###########")
   rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+  
   # Write results to a text file for full holdout testset
   write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RF", dataset_name, output_path)
-
+  
   # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test RF
     rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
-
+    
     # Write results to a text file for holdout_testset_a
     write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "RF", result_filename, output_path)
   }
-
+  
   # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test RF
     rf_predictions <- predict(final_rf_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
-
+    
     # Write results to a text file for holdout_testset_b
     write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "RF", result_filename, output_path)
   }
-
-
+  
+  
   # Code for LSVM model building, validation and evaluation
   # Model building using training data
   print("###########  Starting Linear SVM learning using training data ########### ")
   trained_LSVM_model <- train_LSVM_model(as.matrix(splits$train_data[,-c(1:6)]),
                                          as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+  
   # Print LSVM training results
   print("LSVM training results:")
   print(trained_LSVM_model)
-
+  
   # Performing validation and hyper parameter selection using validation data
   validation_LSVM_model <- train_LSVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                             as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+  
   # Print LSVM validation results
   print("########### LSVM validation results ########### ")
   print(validation_LSVM_model)
-
+  
   # Selecting final model parameters
   final_C <- validation_LSVM_model$finalModel@param$C
-
-
+  
+  
   # Print final parameter values
   print("Final value of parameter C of LSVM:")
   print(final_C)
-
+  
   # Final model building using LSVM
   final_LSVM_trained_model <- train_LSVM_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                as.factor(splits$full_train_data$True_Class_Label),
                                                ml_model_seed, final_C)
-
+  
   # Test LSVM model
   print("########### Starting prediction for holdout testset ###########")
   LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+  
   # Write results to a text file for full holdout testset
   write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "LSVM", dataset_name, output_path)
-
+  
   # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test LSVM
     LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
-
+    
     # Write results to a text file for holdout_testset_a
     write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "LSVM", result_filename, output_path)
   }
-
+  
   # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test LSVM
     LSVM_predictions <- predict(final_LSVM_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
-
+    
     # Write results to a text file for holdout_testset_b
     write_confusion_to_txt(LSVM_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "LSVM", result_filename, output_path)
   }
-
+  
   # Code for RBF_SVM model building, validation and evaluation
   # Model building using training data
   print("###########  Starting RBF SVM learning using training data ########### ")
   trained_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$train_data[,-c(1:6)]),
                                                as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+  
   # Print RBF_SVM training results
   print("RBF SVM training results:")
   print(trained_RBF_SVM_model)
-
+  
   # Performing validation and hyper parameter selection using validation data
   validation_RBF_SVM_model <- train_RBF_SVM_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                                   as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+  
   # Print RBF_SVM validation results
   print("###########  RBF SVM validation results ########### ")
   print(validation_RBF_SVM_model)
-
+  
   # Selecting final model parameters
   final_sigma <- validation_RBF_SVM_model$bestTune$sigma
   final_C = validation_RBF_SVM_model$bestTune$C
-
-
+  
+  
   # Print final parameter values
   print("Final value of parameter C of RBF SVM:")
   print(final_C)
   print("Final value of parameter sigma of RBF SVM:")
   print(final_sigma)
-
+  
   # Final model building using SVM
   final_RBF_SVM_trained_model <- train_RBF_SVM_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                      as.factor(splits$full_train_data$True_Class_Label),
                                                      ml_model_seed, final_C, final_sigma)
-
+  
   # Test RBF_SVM model
   print("########### Starting prediction for holdout testset ###########")
   SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+  
   # Write results to a text file for full holdout testset
   write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test$True_Class_Label), "RBF_SVM", dataset_name, output_path)
-
+  
   # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test RBF_SVM
     SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
-
+    
     # Write results to a text file for holdout_testset_a
     write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "RBF_SVM", result_filename, output_path)
   }
-
+  
   # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test RBF_SVM
     SVM_predictions <- predict(final_RBF_SVM_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
-
+    
     # Write results to a text file for holdout_testset_b
     write_confusion_to_txt(SVM_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "RBF_SVM", result_filename, output_path)
   }
-
+  
   # Code for XGBoost model building, validation and evaluation
   # Model building using training data
   print("###########  Starting XGBoost learning using training data ########### ")
   trained_XGBoost_model <- train_XGBoost_model(as.matrix(splits$train_data[,-c(1:6)]),
                                                as.factor(splits$train_data$True_Class_Label), ml_model_seed)
-
+  
   # Print XGBoost training results
   print("XGBoost training results:")
   print(trained_XGBoost_model)
-
+  
   # best performance on train data (error)
   print(min(trained_XGBoost_model$evaluation_log$train_error))
-
+  
   # best performance on train data (Accuracy)
   print(1-min(trained_XGBoost_model$evaluation_log$train_error))
-
+  
   # Performing validation and hyper parameter selection using validation data
   validation_XGBoost_model <- train_XGBoost_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                                   as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
-
+  
   # Print XGBoost validation results
   print("########### XGBoost validation results ###########")
   print(validation_XGBoost_model)
-
+  
   # Selecting final model parameters
   final_max_depth <- validation_XGBoost_model$params$max_depth
   final_eta <- validation_XGBoost_model$params$eta
-
+  
   # best performance on valid (error)
   print(min(validation_XGBoost_model$evaluation_log$train_error))
-
+  
   # best performance on valid (Accuracy)
   print(1-min(validation_XGBoost_model$evaluation_log$train_error))
-
-
+  
+  
   # Print final parameter values
   print("Final value of parameter max depth of XGBoost:")
   print(final_max_depth)
   print("Final value of parameter eta of XGBoost:")
   print(final_eta)
-
-
+  
+  
   # Final model building using XGBoost
   final_XGBoost_trained_model <- train_XGBoost_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                      as.factor(splits$full_train_data$True_Class_Label),
                                                      ml_model_seed, final_max_depth, final_eta)
-
+  
   # Test XGBoost model
   print("########### Starting prediction for holdout testset ###########")
   XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
-
+  
   for (i in 1:length(XGBoost_predictions)) {
     if(XGBoost_predictions[i] < 0.5){
       XGBoost_predictions[i] <- 'Not RVI'
     }else{
       XGBoost_predictions[i] <- 'RVI'
     }
-
+    
   }
-
+  
   # Write results to a text file for full holdout testset
   write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test$True_Class_Label), "XGBoost", dataset_name, output_path)
-
+  
   # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
-
+    
     # Test XGBoost model
     XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
-
+    
     for (i in 1:length(XGBoost_predictions)) {
       if(XGBoost_predictions[i] < 0.5){
         XGBoost_predictions[i] <- 'Not RVI'
@@ -1032,22 +1455,22 @@ for(dataset_name in dataset_names) {
         XGBoost_predictions[i] <- 'RVI'
       }
     }
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
-
+    
     # Write results to a text file
     write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test_a$True_Class_Label), "XGBoost", result_filename, output_path)
-
+    
   }
-
+  
   # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
-
+    
     # Test XGBoost model
     XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
-
+    
     for (i in 1:length(XGBoost_predictions)) {
       if(XGBoost_predictions[i] < 0.5){
         XGBoost_predictions[i] <- 'Not RVI'
@@ -1055,14 +1478,14 @@ for(dataset_name in dataset_names) {
         XGBoost_predictions[i] <- 'RVI'
       }
     }
-
+    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
-
+    
     # Write results to a text file
     write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test_b$True_Class_Label), "XGBoost", result_filename, output_path)
-
+    
   } # End if condition
   
   
@@ -1073,18 +1496,19 @@ for(dataset_name in dataset_names) {
     KB <- read_KBs(KB_name, input_path)
     
     
-    ##################################################################################################
-    ######################################## SCADDx  #################################################
-    ##################################################################################################
     print(paste0("Dataset name: ", dataset_name))
     print(paste0("KB name: ", KB_name))
     
+    ##################################################################################################
+    ######################################## SCADDx  #################################################
+    ##################################################################################################
+    
     # Model building using training data
     print("########### Starting SCADDx learning using training data ###########")
-
+    
     trained_SCADDx_model <- SCADDx_model(KB, splits$train_data, splits$train_data$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "SCADDx", "Train")
-
-
+    
+    
     # Print SCADDx training results
     print("SCADDx training results:")
     print(trained_SCADDx_model)
@@ -1148,6 +1572,82 @@ for(dataset_name in dataset_names) {
     
     ##################################################################################################
     ####################################### End SCADDx  ##############################################
+    ##################################################################################################
+    
+    
+    ##################################################################################################
+    ######################################## LOADDx  #################################################
+    ##################################################################################################
+    
+    # Model building using training data
+    print("########### Starting LOADDx learning using training data ###########")
+    
+    trained_LOADDx_model <- LOADDx_model(KB, splits$train_data, splits$train_data$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Train")
+    
+    
+    # Print LOADDx training results
+    print("LOADDx training results:")
+    print(trained_LOADDx_model)
+    
+    # Performing validation and hyper parameter selection using validation data
+    validation_LOADDx_model <- LOADDx_model(KB, splits$valid_data, splits$valid_data$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Validation")
+    
+    
+    # Print LOADDx validation results
+    print("LOADDx validation results:")
+    print(validation_LOADDx_model)
+    
+    # Selecting best value of P and Q based on the performance on validation set
+    P <- validation_LOADDx_model[validation_LOADDx_model$Avg_Acc == max(validation_LOADDx_model$Avg_Acc), "P"][1]
+    Q <- validation_LOADDx_model[validation_LOADDx_model$Avg_Acc == max(validation_LOADDx_model$Avg_Acc), "Q"][1]
+    
+    # Print final parameter values
+    print(paste0("Final value of P is: ", P))
+    print(paste0("Final value of Q is: ", Q))
+    
+    # Test LOADDx
+    cat("\n")
+    print("########### Starting prediction for holdout testset ###########")
+    cat("\n")
+    
+    LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test, splits$holdout_test$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Holdout_test", P, Q)
+    
+    # Print LOADDx holdout testset results
+    print("LOADDx holdout testset results: Accuracy on different values of top n diseases")
+    print(LOADDx_predictions)
+    
+    
+    # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the file name
+      result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
+      
+      LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test_a, splits$holdout_test_a$True_Class_Label, ml_model_seed, result_filename, KB_name, output_path, "LOADDx", "Holdout_test", P, Q)
+      
+      # Print SCADDx holdout testset results
+      print(paste0(data_name,"_LOADDx_Holdout_", "Testset_a_results:"))
+      print(LOADDx_predictions)
+      
+    }
+    
+    # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
+    if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
+      
+      data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
+      # Create the file name
+      result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
+      
+      LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test_b, splits$holdout_test_b$True_Class_Label, ml_model_seed, result_filename, KB_name, output_path, "LOADDx", "Holdout_test", P, Q)
+      
+      # Print SCADDx holdout testset results
+      print(paste0(data_name,"_LOADDx_Holdout_", "Testset_b_results:"))
+      print(LOADDx_predictions)
+    }
+    
+    ##################################################################################################
+    ####################################### End LOADDx  ##############################################
     ##################################################################################################
     
   }
