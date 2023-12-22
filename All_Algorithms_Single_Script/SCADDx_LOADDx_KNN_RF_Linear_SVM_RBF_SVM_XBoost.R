@@ -31,7 +31,6 @@ ml_model_seed <- 1234
 # Define an input path
 input_path <- "./Datasets/" 
 
-
 # Define an output path
 output_path <- "./All_ML_Models_Results/" 
 
@@ -109,28 +108,28 @@ split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
 
 # Train KNN model
 # If k_vals is specified, train using this, which might be a single value or a set of values for a grid search. Otherwise, use default settings for a grid search.
-train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals=c(1:30)) {
+train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals=seq(1,dim(train_data)[1],2)) {
   set.seed(ml_model_seed)
   metric <- "Accuracy"
+  
   grid <- expand.grid(k = k_vals)
   trained_model <- train(x= train_data,
                          y = Labels_train_data,
                          method = "knn",
                          metric = metric,
                          tuneGrid = grid)
+  
   return(trained_model)
 }
 
 
 # Train Random Forest model 
-train_rf_model <- function(train_data, Labels_train_data, ml_model_seed, mtry = floor(sqrt(ncol(train_data))), ntree_vals = 100) {
+train_rf_model <- function(train_data, Labels_train_data, ml_model_seed, mtry = seq(10,floor(sqrt(ncol(train_data))),10), ntree_vals = 100) {
   
   # defining evaluation metric
   metric <- "Accuracy"
   # ntree: parameter that allows number of trees to grow
   # The mtry parameter setting: Number of variables selected as candidates at each split.
-  # Square root of number of features
-  # mtry <- floor(sqrt(ncol(train_data)))
   
   # Passing parameter into tunegrid
   grid <- expand.grid(.mtry=mtry)
@@ -187,19 +186,31 @@ train_RBF_SVM_model <- function(train_data, Labels_train_data, ml_model_seed,
 
 
 # Train XGBoost model 
-train_XGBoost_model <- function(train_data, Labels_train_data, ml_model_seed, max_depth_vals = 6, eta_vals = 0.3) {
+train_XGBoost_model <- function(train_data, Labels_train_data, ml_model_seed, max_depth_vals = c(2:6), eta_vals = seq(0.1,1,0.1), nrounds_vals = seq(10,100,10)) {
   set.seed(ml_model_seed)
-  Labels_train_data <- recode(Labels_train_data,'RVI'=1, 'Not RVI'=0)
   
-  # training procedure
-  trained_model <- xgboost(data = train_data, 
-                           label = Labels_train_data, 
-                           max.depth = max_depth_vals, 
-                           eta = eta_vals, 
-                           nrounds = 100, 
-                           eval_metric = "error",
-                           objective = "binary:logistic",
-                           verbose = 1)
+  # Assigning values to the parameters
+  tune_grid <- expand.grid(
+    nrounds = nrounds_vals,
+    eta = eta_vals,
+    max_depth = max_depth_vals,
+    gamma = 0,
+    colsample_bytree = 1,
+    min_child_weight = 1,
+    subsample = 1
+  )
+  
+  # training XGBoost classifier
+  trained_model <- caret::train(
+    x = train_data,
+    y = factor(Labels_train_data),
+    tuneGrid = tune_grid,
+    method = "xgbTree",
+    metric = "Accuracy",
+    verbose = FALSE,
+    verbosity = 0
+  )
+  
   
   # Print trained model
   return(trained_model)
@@ -650,6 +661,7 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
     ###################################    Grid search   ##############################################################
     
     # Grid search: alternatively to perform grid search, enter appropriate start, end, and step size for P and Q
+
     P_start <- 25
     P_end <- 50      # replace P_end <- 50 with 300 to reproduce the results shown in the paper. Keep it low for quick test.  
     P_step <- 25
@@ -1104,6 +1116,7 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 # Read datasets
 dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
 
+
 for(dataset_name in dataset_names) {
   Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
   
@@ -1113,12 +1126,14 @@ for(dataset_name in dataset_names) {
   # Model building using training data
   print("########### Starting KNN learning using training data ###########")
   
-  trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
+  # Model building using training data
+  trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]), # supply train data after removing labels and other demographic info columns. Only supply gene expression data
                                        as.factor(splits$train_data$True_Class_Label), ml_model_seed)
   
   # Print KNN training results
   print("KNN training results:")
   print(trained_knn_model)
+  
   
   # Performing validation and hyper parameter selection using validation data
   validation_knn_model <- train_knn_model(as.matrix(splits$valid_data[,-c(1:6)]),
@@ -1179,6 +1194,7 @@ for(dataset_name in dataset_names) {
     # Write results to a text file for holdout_testset_b
     write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "KNN", result_filename, output_path)
   }
+  
   
   # Code for RF model building, validation and evaluation
   # Model building using training data
@@ -1246,7 +1262,6 @@ for(dataset_name in dataset_names) {
     # Write results to a text file for holdout_testset_b
     write_confusion_to_txt(rf_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "RF", result_filename, output_path)
   }
-  
   
   # Code for LSVM model building, validation and evaluation
   # Model building using training data
@@ -1389,12 +1404,6 @@ for(dataset_name in dataset_names) {
   print("XGBoost training results:")
   print(trained_XGBoost_model)
   
-  # best performance on train data (error)
-  print(min(trained_XGBoost_model$evaluation_log$train_error))
-  
-  # best performance on train data (Accuracy)
-  print(1-min(trained_XGBoost_model$evaluation_log$train_error))
-  
   # Performing validation and hyper parameter selection using validation data
   validation_XGBoost_model <- train_XGBoost_model(as.matrix(splits$valid_data[,-c(1:6)]),
                                                   as.factor(splits$valid_data$True_Class_Label), ml_model_seed)
@@ -1404,40 +1413,28 @@ for(dataset_name in dataset_names) {
   print(validation_XGBoost_model)
   
   # Selecting final model parameters
-  final_max_depth <- validation_XGBoost_model$params$max_depth
-  final_eta <- validation_XGBoost_model$params$eta
-  
-  # best performance on valid (error)
-  print(min(validation_XGBoost_model$evaluation_log$train_error))
-  
-  # best performance on valid (Accuracy)
-  print(1-min(validation_XGBoost_model$evaluation_log$train_error))
-  
+  final_max_depth <- validation_XGBoost_model$bestTune$max_depth
+  final_eta <- validation_XGBoost_model$bestTune$eta
+  final_nrounds <- validation_XGBoost_model$bestTune$nrounds
   
   # Print final parameter values
   print("Final value of parameter max depth of XGBoost:")
   print(final_max_depth)
   print("Final value of parameter eta of XGBoost:")
   print(final_eta)
+  print("Final value of parameter rounds of XGBoost:")
+  print(final_nrounds)
   
   
   # Final model building using XGBoost
   final_XGBoost_trained_model <- train_XGBoost_model(as.matrix(splits$full_train_data[,-c(1:6)]),
                                                      as.factor(splits$full_train_data$True_Class_Label),
-                                                     ml_model_seed, final_max_depth, final_eta)
+                                                     ml_model_seed, final_max_depth, final_eta, final_nrounds)
   
   # Test XGBoost model
   print("########### Starting prediction for holdout testset ###########")
   XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
   
-  for (i in 1:length(XGBoost_predictions)) {
-    if(XGBoost_predictions[i] < 0.5){
-      XGBoost_predictions[i] <- 'Not RVI'
-    }else{
-      XGBoost_predictions[i] <- 'RVI'
-    }
-    
-  }
   
   # Write results to a text file for full holdout testset
   write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test$True_Class_Label), "XGBoost", dataset_name, output_path)
@@ -1447,14 +1444,6 @@ for(dataset_name in dataset_names) {
     
     # Test XGBoost model
     XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
-    
-    for (i in 1:length(XGBoost_predictions)) {
-      if(XGBoost_predictions[i] < 0.5){
-        XGBoost_predictions[i] <- 'Not RVI'
-      }else{
-        XGBoost_predictions[i] <- 'RVI'
-      }
-    }
     
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
@@ -1471,14 +1460,6 @@ for(dataset_name in dataset_names) {
     # Test XGBoost model
     XGBoost_predictions <- predict(final_XGBoost_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
     
-    for (i in 1:length(XGBoost_predictions)) {
-      if(XGBoost_predictions[i] < 0.5){
-        XGBoost_predictions[i] <- 'Not RVI'
-      }else{
-        XGBoost_predictions[i] <- 'RVI'
-      }
-    }
-    
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
@@ -1487,6 +1468,7 @@ for(dataset_name in dataset_names) {
     write_confusion_to_txt(as.factor(XGBoost_predictions), as.factor(splits$hold_out_test_b$True_Class_Label), "XGBoost", result_filename, output_path)
     
   } # End if condition
+  
   
   
   # Read Knowledge Bases
