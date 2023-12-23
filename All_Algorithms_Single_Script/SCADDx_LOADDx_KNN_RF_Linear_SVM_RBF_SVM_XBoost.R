@@ -1083,7 +1083,7 @@ predict_test <- function(final_trained_model, holdout_test) {
 }
 
 # Write confusion matrix results to TXT
-write_confusion_to_txt <- function(predictions, holdout_test, model_name, dataset_name, output_path, KB_name = "_____") {
+write_confusion_to_txt <- function(predictions, holdout_test, model_name, dataset_name, output_path, KB_name = "____") {
   
   # predict subject's health at target time point 
   holdout_test <- holdout_test %>% filter(Time > 0)
