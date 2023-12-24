@@ -98,9 +98,11 @@ split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
     holdout_test_a <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_a$Super_Subject_ID)
     holdout_test_b <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_b$Super_Subject_ID)
     
+    # Return training, validation and holdout testsets for Dataset 1 and Dataset 2
     return(list(train_data = g_train_data, full_train_data = g_full_train_data, valid_data = g_valid_data, holdout_test = g_test_data, holdout_test_a = holdout_test_a, holdout_test_b = holdout_test_b))
     
   } else {
+    # Return training, validation and holdout testsets for Dataset 3 and Dataset 4 (Can't partition these datasets into holdout testset a and b as they are small in size)
     return(list(train_data = g_train_data, full_train_data = g_full_train_data, valid_data = g_valid_data, holdout_test = g_test_data))
   }
   
