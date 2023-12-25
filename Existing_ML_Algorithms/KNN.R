@@ -42,6 +42,7 @@ read_gene_expression_data <- function(filename,input_path) {
 }
 
 
+
 # Split data into train, validation, and test
 split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
   total_data <- Gene_Exp_Data
@@ -69,7 +70,7 @@ split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
   # Full train data for final model building
   full_train_data <- rbind(train_data,valid_data)
   
-  # train test all time points
+  # train, valid and holdout_test all time points
   g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
   g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
   g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
@@ -88,43 +89,66 @@ split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
     hold_out_test_a <- hold_out_test[index_test1, ]
     hold_out_test_b <- hold_out_test[-index_test1, ]
     
-    # Testset all time points
+    # Holdout_Testset_a and Holdout_Testet_b all time points
     holdout_test_a <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_a$Super_Subject_ID)
     holdout_test_b <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_b$Super_Subject_ID)
     
-    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, hold_out_test_a = hold_out_test_a, hold_out_test_b = hold_out_test_b, holdout_test = g_test_data, holdout_test_a = holdout_test_a, holdout_test_b = holdout_test_b))
+    # Return training, validation and holdout testsets for Dataset 1 and Dataset 2
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, valid_data = g_valid_data, holdout_test = g_test_data, holdout_test_a = holdout_test_a, holdout_test_b = holdout_test_b))
     
   } else {
-    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, holdout_test = g_test_data))
+    # Return training, validation and holdout testsets for Dataset 3 and Dataset 4 (Can't partition these datasets into holdout testset a and b as they are small in size)
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, valid_data = g_valid_data, holdout_test = g_test_data))
   }
   
 }
 
 # Train KNN model
 # If k_vals is specified, train using this, which might be a single value or a set of values for a grid search. Otherwise, use default settings for a grid search.
-train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals=c(1:30)) {
+train_knn_model <- function(train_data, Labels_train_data, ml_model_seed, k_vals=seq(1,dim(train_data)[1],2)) {
   set.seed(ml_model_seed)
   metric <- "Accuracy"
+  
   grid <- expand.grid(k = k_vals)
   trained_model <- train(x= train_data,
                          y = Labels_train_data,
                          method = "knn",
                          metric = metric,
                          tuneGrid = grid)
+  
   return(trained_model)
 }
 
 
+
+# Predict function 
+predict_test <- function(final_trained_model, holdout_test) {
+  
+  # predict subject's health at target time point 
+  holdout_test <- holdout_test %>% filter(Time > 0)
+  
+  predictions <- predict(final_trained_model, newdata = as.matrix(holdout_test[,-c(1:6)]))
+  
+  # return predictions
+  return(predictions)
+}
+
 # Write confusion matrix results to TXT
-write_confusion_to_txt <- function(predictions, actual_labels, model_name, dataset_name, output_path) {
+write_confusion_to_txt <- function(predictions, holdout_test, model_name, dataset_name, output_path, KB_name = "____") {
+  
+  # predict subject's health at target time point 
+  holdout_test <- holdout_test %>% filter(Time > 0)
+  
+  actual_labels <- as.factor(holdout_test$True_Class_Label)
+  
   # Ensure that both predictions and actual_labels are factors
   predictions <- factor(predictions)
   actual_labels <- factor(actual_labels)
   
   dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
-  
+  KB_name <- substr(KB_name, 1, nchar(KB_name) - 4)
   # Create the filename
-  filename <- paste0(output_path, model_name, "_", dataset_name, "_confusion_matrix.txt")
+  filename <- paste0(output_path, model_name, "_", dataset_name,"_", KB_name, "_confusion_matrix.txt")
   
   # Open a connection for writing
   con <- file(filename, "w")
@@ -176,7 +200,9 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 ##################################################################################################
 
 # Read datasets
-dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
+dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_1_GSE73072.csv")
+
+
 
 for(dataset_name in dataset_names) {
   Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
@@ -184,10 +210,15 @@ for(dataset_name in dataset_names) {
   # Split data
   splits <- split_data(Gene_Exp_Data, data_partition_seed, dataset_name)
   
+  ##################################################################################################
+  ########################################### KNN  #################################################
+  ##################################################################################################
+  
   # Model building using training data
   print("########### Starting KNN learning using training data ###########")
   
-  trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]),
+  # Model building using training data
+  trained_knn_model <- train_knn_model(as.matrix(splits$train_data[,-c(1:6)]), # supply train data after removing labels and other demographic info columns. Only supply gene expression data
                                        as.factor(splits$train_data$True_Class_Label), ml_model_seed)
   
   # Print KNN training results
@@ -207,6 +238,7 @@ for(dataset_name in dataset_names) {
   print("KNN validation results:")
   print(validation_knn_model)
   
+  
   # Selecting final model parameters
   final_k <- validation_knn_model$finalModel$tuneValue[1]
   
@@ -218,41 +250,44 @@ for(dataset_name in dataset_names) {
                                              as.factor(splits$full_train_data$True_Class_Label),
                                              ml_model_seed, final_k)
   
-  
   # Test KNN
   cat("\n")
   print("########### Starting prediction for holdout testset ###########")
   cat("\n")
-  knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test[,-c(1:6)]))
+  knn_predictions <- predict_test(final_knn_trained_model, splits$holdout_test)
   
   # Write results to a text file for full holdout testset
-  write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test$True_Class_Label), "KNN", dataset_name, output_path)
+  write_confusion_to_txt(knn_predictions, splits$holdout_test, "KNN", dataset_name, output_path)
   
   # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test KNN
-    knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test_a[,-c(1:6)]))
+    knn_predictions <- predict_test(final_knn_trained_model, splits$holdout_test_a)
     
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
     
     # Write results to a text file for holdout_testset_a
-    write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_a$True_Class_Label), "KNN", result_filename, output_path)
+    write_confusion_to_txt(knn_predictions, splits$holdout_test_a, "KNN", result_filename, output_path)
   }
   
   # Result for  Testset 1b or Testset 2b only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
   if(dataset_name == "Gene_Expression_Dataset_1_GSE73072.csv" | dataset_name == "Gene_Expression_Dataset_2_GSE68310.csv") {
     # Test KNN
-    knn_predictions <- predict(final_knn_trained_model, newdata = as.matrix(splits$hold_out_test_b[,-c(1:6)]))
+    knn_predictions <- predict_test(final_knn_trained_model, splits$holdout_test_b)
     
     data_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
     # Create the filename
     result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
     
     # Write results to a text file for holdout_testset_b
-    write_confusion_to_txt(knn_predictions, as.factor(splits$hold_out_test_b$True_Class_Label), "KNN", result_filename, output_path)
+    write_confusion_to_txt(knn_predictions, splits$holdout_test_b, "KNN", result_filename, output_path)
   }
   
-}
+  ##################################################################################################
+  ######################################## End KNN  ################################################
+  ##################################################################################################
+  
 
+}
