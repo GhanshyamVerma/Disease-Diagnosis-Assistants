@@ -530,18 +530,6 @@ SCADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
 
 
 
-# Predict function 
-predict_test <- function(final_trained_model, holdout_test) {
-  
-  # predict subject's health at target time point 
-  holdout_test <- holdout_test %>% filter(Time > 0)
-  
-  predictions <- predict(final_trained_model, newdata = as.matrix(holdout_test[,-c(1:6)]))
-  
-  # return predictions
-  return(predictions)
-}
-
 # Write confusion matrix results to TXT
 write_confusion_to_txt <- function(predictions, holdout_test, model_name, dataset_name, output_path, KB_name = "____") {
   
