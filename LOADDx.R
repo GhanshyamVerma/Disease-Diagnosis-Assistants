@@ -31,7 +31,6 @@ ml_model_seed <- 1234
 # Define an input path
 input_path <- "./Datasets/" 
 
-
 # Define an output path
 output_path <- "./All_ML_Models_Results/" 
 
@@ -76,7 +75,7 @@ split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
   # Full train data for final model building
   full_train_data <- rbind(train_data,valid_data)
   
-  # train test all time points
+  # train, valid and holdout_test all time points
   g_train_data <- total_data %>% filter(Super_Subject_ID %in% train_data$Super_Subject_ID)
   g_valid_data <- total_data %>% filter(Super_Subject_ID %in% valid_data$Super_Subject_ID)
   g_test_data <- total_data %>% filter(Super_Subject_ID %in% hold_out_test$Super_Subject_ID)
@@ -95,17 +94,20 @@ split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
     hold_out_test_a <- hold_out_test[index_test1, ]
     hold_out_test_b <- hold_out_test[-index_test1, ]
     
-    # Testset all time points
+    # Holdout_Testset_a and Holdout_Testet_b all time points
     holdout_test_a <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_a$Super_Subject_ID)
     holdout_test_b <- total_data %>% filter(Super_Subject_ID %in% hold_out_test_b$Super_Subject_ID)
     
-    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, hold_out_test_a = hold_out_test_a, hold_out_test_b = hold_out_test_b, holdout_test = g_test_data, holdout_test_a = holdout_test_a, holdout_test_b = holdout_test_b))
+    # Return training, validation and holdout testsets for Dataset 1 and Dataset 2
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, valid_data = g_valid_data, holdout_test = g_test_data, holdout_test_a = holdout_test_a, holdout_test_b = holdout_test_b))
     
   } else {
-    return(list(train_data = g_train_data, full_train_data = g_full_train_data, hold_out_test = hold_out_test, valid_data = g_valid_data, holdout_test = g_test_data))
+    # Return training, validation and holdout testsets for Dataset 3 and Dataset 4 (Can't partition these datasets into holdout testset a and b as they are small in size)
+    return(list(train_data = g_train_data, full_train_data = g_full_train_data, valid_data = g_valid_data, holdout_test = g_test_data))
   }
   
 }
+
 
 
 # Train LOADDx model 
@@ -126,7 +128,7 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
   # Q_step <- 0
   
   
-  if(which_set == "Holdout_test"){
+  if(which_set == "Holdout_test" | which_set == "Final_model"){
     ###################################    NO Grid search   ##############################################################
     
     P_start <- P_start
@@ -140,6 +142,7 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
     ###################################    Grid search   ##############################################################
     
     # Grid search: alternatively to perform grid search, enter appropriate start, end, and step size for P and Q
+    
     P_start <- 25
     P_end <- 50      # replace P_end <- 50 with 300 to reproduce the results shown in the paper. Keep it low for quick test.  
     P_step <- 25
@@ -414,9 +417,13 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
         cat("\n")
       } # end for loop 
       
-      # Create the file name
-      filename <- paste0(output_path, model_name, "_", dataset_name,"_",KB_name,"_predicted_info_",which_set,"_Total_Sub",l,"_p_",p,"_q_",q,".csv")
-      write.csv(Gene_Data_All_ti_prediction, file = filename, row.names = FALSE)
+      
+      if(which_set == "Holdout_test"){
+        # Create the file name
+        filename <- paste0(output_path, model_name, "_", dataset_name,"_",KB_name,"_predicted_info_",which_set,"_Total_Sub",l,"_p_",p,"_q_",q,".csv")
+        write.csv(Gene_Data_All_ti_prediction, file = filename, row.names = FALSE)
+      }
+      
       
       
       cat("\n")
@@ -445,6 +452,7 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
           
           Accuracy_matrix[Acc_index, (2+i)] <- confusion_mat$overall[1]
         }
+        
       }else{ #computing accuracy using standard method (hit rate) if only positive subjects are there in the data
         for(i in 1:6){
           hit <- 0
@@ -475,6 +483,8 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
         }
         
       }
+      
+      
       
       # assign current value of P and Q 
       Accuracy_matrix$P[Acc_index] <- p
@@ -521,26 +531,35 @@ LOADDx_model <- function(KB, train_data, Labels_train_data, ml_model_seed, datas
   
   print(total_loop_time)
   
-  # Create the filename
-  filename <- paste0(output_path, model_name, "_", dataset_name,"_",KB_name,"_Accuracy_Matrix_",which_set,"_Total_Sub",l,"_p_",p,"_q_",q,".csv")
-  write.csv(Accuracy_matrix, file = filename, row.names = FALSE)
+  if(which_set == "Holdout_test"){
+    # Create the filename
+    filename <- paste0(output_path, model_name, "_", dataset_name,"_",KB_name,"_Accuracy_Matrix_",which_set,"_Total_Sub",l,"_p_",p,"_q_",q,".csv")
+    write.csv(Accuracy_matrix, file = filename, row.names = FALSE)
+  }
   
   
-  return(Accuracy_matrix)
+  
+  return(list(Accuracy_matrix = Accuracy_matrix, Predictions = Gene_Data_All_ti_prediction))
   
 }
 
 
 # Write confusion matrix results to TXT
-write_confusion_to_txt <- function(predictions, actual_labels, model_name, dataset_name, output_path) {
+write_confusion_to_txt <- function(predictions, holdout_test, model_name, dataset_name, output_path, KB_name = "____") {
+  
+  # predict subject's health at target time point 
+  holdout_test <- holdout_test %>% filter(Time > 0)
+  
+  actual_labels <- as.factor(holdout_test$True_Class_Label)
+  
   # Ensure that both predictions and actual_labels are factors
   predictions <- factor(predictions)
   actual_labels <- factor(actual_labels)
   
   dataset_name <- substr(dataset_name, 1, nchar(dataset_name) - 4)
-  
+  KB_name <- substr(KB_name, 1, nchar(KB_name) - 4)
   # Create the filename
-  filename <- paste0(output_path, model_name, "_", dataset_name, "_confusion_matrix.txt")
+  filename <- paste0(output_path, model_name, "_", dataset_name,"_", KB_name, "_confusion_matrix.txt")
   
   # Open a connection for writing
   con <- file(filename, "w")
@@ -592,7 +611,9 @@ write_confusion_to_txt <- function(predictions, actual_labels, model_name, datas
 ##################################################################################################
 
 # Read datasets
-dataset_names <- c("Gene_Expression_Dataset_1_GSE73072.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_4_GSE61754.csv")
+dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_1_GSE73072.csv")
+
+
 
 for(dataset_name in dataset_names) {
   Gene_Exp_Data <- read_gene_expression_data(dataset_name, input_path)
@@ -600,7 +621,7 @@ for(dataset_name in dataset_names) {
   # Split data
   splits <- split_data(Gene_Exp_Data, data_partition_seed, dataset_name)
   
- 
+  
   # Read Knowledge Bases
   
   KB_names <- c("DisGeNet_Knowledge_Base.csv", "CTD_Knowledge_Base.csv")
@@ -611,7 +632,7 @@ for(dataset_name in dataset_names) {
     print(paste0("Dataset name: ", dataset_name))
     print(paste0("KB name: ", KB_name))
     
-  
+    
     ##################################################################################################
     ######################################## LOADDx  #################################################
     ##################################################################################################
@@ -624,7 +645,7 @@ for(dataset_name in dataset_names) {
     
     # Print LOADDx training results
     print("LOADDx training results:")
-    print(trained_LOADDx_model)
+    print(trained_LOADDx_model$Accuracy_matrix)
     
     # Performing validation and hyper parameter selection using validation data
     validation_LOADDx_model <- LOADDx_model(KB, splits$valid_data, splits$valid_data$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Validation")
@@ -632,26 +653,33 @@ for(dataset_name in dataset_names) {
     
     # Print LOADDx validation results
     print("LOADDx validation results:")
-    print(validation_LOADDx_model)
+    print(validation_LOADDx_model$Accuracy_matrix)
     
     # Selecting best value of P and Q based on the performance on validation set
-    P <- validation_LOADDx_model[validation_LOADDx_model$Avg_Acc == max(validation_LOADDx_model$Avg_Acc), "P"][1]
-    Q <- validation_LOADDx_model[validation_LOADDx_model$Avg_Acc == max(validation_LOADDx_model$Avg_Acc), "Q"][1]
+    P <- validation_LOADDx_model$Accuracy_matrix[validation_LOADDx_model$Accuracy_matrix$Avg_Acc == max(validation_LOADDx_model$Accuracy_matrix$Avg_Acc), "P"][1]
+    Q <- validation_LOADDx_model$Accuracy_matrix[validation_LOADDx_model$Accuracy_matrix$Avg_Acc == max(validation_LOADDx_model$Accuracy_matrix$Avg_Acc), "Q"][1]
     
     # Print final parameter values
     print(paste0("Final value of P is: ", P))
     print(paste0("Final value of Q is: ", Q))
+    
+    # Final model building using SCADDx
+    final_LOADDx_trained_model <- LOADDx_model(KB, splits$full_train_data, splits$full_train_data$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Final_model", P, Q)
+    
     
     # Test LOADDx
     cat("\n")
     print("########### Starting prediction for holdout testset ###########")
     cat("\n")
     
-    LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test, splits$holdout_test$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Holdout_test", P, Q)
+    LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test, splits$holdout_test$True_Class_Label, ml_model_seed, dataset_name, KB_name, output_path, "LOADDx", "Holdout_test", final_LOADDx_trained_model$Accuracy_matrix$P, final_LOADDx_trained_model$Accuracy_matrix$Q)
     
     # Print LOADDx holdout testset results
     print("LOADDx holdout testset results: Accuracy on different values of top n diseases")
-    print(LOADDx_predictions)
+    print(LOADDx_predictions$Accuracy_matrix)
+    
+    # Write results to a text file for holdout testset
+    write_confusion_to_txt(LOADDx_predictions$Predictions$predicted_label_top_10, splits$holdout_test, "LOADDx", dataset_name, output_path, KB_name)
     
     
     # Result for Testset 1a or  Testset 2a only for Gene_Expression_Dataset_1 and Gene_Expression_Dataset_2
@@ -661,11 +689,14 @@ for(dataset_name in dataset_names) {
       # Create the file name
       result_filename <- paste0(data_name, "_holdout_testset_a_results.txt")
       
-      LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test_a, splits$holdout_test_a$True_Class_Label, ml_model_seed, result_filename, KB_name, output_path, "LOADDx", "Holdout_test", P, Q)
+      LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test_a, splits$holdout_test_a$True_Class_Label, ml_model_seed, result_filename, KB_name, output_path, "LOADDx", "Holdout_test", final_LOADDx_trained_model$Accuracy_matrix$P, final_LOADDx_trained_model$Accuracy_matrix$Q)
       
       # Print SCADDx holdout testset results
       print(paste0(data_name,"_LOADDx_Holdout_", "Testset_a_results:"))
-      print(LOADDx_predictions)
+      print(LOADDx_predictions$Accuracy_matrix)
+      
+      # Write results to a text file for holdout testset
+      write_confusion_to_txt(LOADDx_predictions$Predictions$predicted_label_top_10, splits$holdout_test_a, "LOADDx", result_filename, output_path, KB_name)
       
     }
     
@@ -676,11 +707,14 @@ for(dataset_name in dataset_names) {
       # Create the file name
       result_filename <- paste0(data_name, "_holdout_testset_b_results.txt")
       
-      LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test_b, splits$holdout_test_b$True_Class_Label, ml_model_seed, result_filename, KB_name, output_path, "LOADDx", "Holdout_test", P, Q)
+      LOADDx_predictions <- LOADDx_model(KB, splits$holdout_test_b, splits$holdout_test_b$True_Class_Label, ml_model_seed, result_filename, KB_name, output_path, "LOADDx", "Holdout_test", final_LOADDx_trained_model$Accuracy_matrix$P, final_LOADDx_trained_model$Accuracy_matrix$Q)
       
       # Print SCADDx holdout testset results
       print(paste0(data_name,"_LOADDx_Holdout_", "Testset_b_results:"))
-      print(LOADDx_predictions)
+      print(LOADDx_predictions$Accuracy_matrix)
+      
+      # Write results to a text file for holdout testset
+      write_confusion_to_txt(LOADDx_predictions$Predictions$predicted_label_top_10, splits$holdout_test_b, "LOADDx", result_filename, output_path, KB_name)
     }
     
     ##################################################################################################
@@ -690,4 +724,3 @@ for(dataset_name in dataset_names) {
   }
   
 }
-
