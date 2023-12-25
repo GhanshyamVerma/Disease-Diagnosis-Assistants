@@ -55,7 +55,6 @@ read_gene_expression_data <- function(filename,input_path) {
 }
 
 
-
 # Split data into train, validation, and test
 split_data <- function(Gene_Exp_Data, data_partition_seed, dataset_name) {
   total_data <- Gene_Exp_Data
@@ -308,7 +307,6 @@ write_confusion_to_txt <- function(predictions, holdout_test, model_name, datase
 
 # Read datasets
 dataset_names <- c("Gene_Expression_Dataset_4_GSE61754.csv", "Gene_Expression_Dataset_3_GSE90732.csv", "Gene_Expression_Dataset_2_GSE68310.csv", "Gene_Expression_Dataset_1_GSE73072.csv")
-
 
 
 for(dataset_name in dataset_names) {
@@ -707,7 +705,6 @@ for(dataset_name in dataset_names) {
   ##################################################################################################
   ########################################  End XGBoost  ###########################################
   ##################################################################################################
-  
   
   
 }
